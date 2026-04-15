@@ -285,7 +285,7 @@ tr:hover td{background:#fafafa}
   <div id="it-emp">
     <div class="panel"><h3>Template</h3>
       <textarea id="etpl" rows="3" readonly onclick="this.select()"></textarea>
-      <div class="fr" style="margin-top:6px"><button onclick="cpTpl('etpl','ecop')">Copy</button><span id="ecop" style="display:none;font-size:11px;color:#16a34a;margin-left:6px">Copied!</span></div>
+      <div class="fr" style="margin-top:6px"><button onclick="cpTpl('etpl','employee_template.csv')">↓ Download template</button></div>
     </div>
     <div class="panel"><h3>Upload CSV</h3>
       <div class="dz" id="edz" onclick="document.getElementById('ef2').click()" ondragover="dov(event,'edz')" ondragleave="dlv('edz')" ondrop="ddp(event,'emp')">
@@ -302,7 +302,7 @@ tr:hover td{background:#fafafa}
   <div id="it-att" style="display:none">
     <div class="panel"><h3>Template</h3>
       <textarea id="atpl" rows="5" readonly onclick="this.select()"></textarea>
-      <div class="fr" style="margin-top:6px"><button onclick="cpTpl('atpl','acop')">Copy</button><span id="acop" style="display:none;font-size:11px;color:#16a34a;margin-left:6px">Copied!</span></div>
+      <div class="fr" style="margin-top:6px"><button onclick="cpTpl('atpl','attendance_template.csv')">↓ Download template</button></div>
     </div>
     <div class="panel"><h3>Upload CSV</h3>
       <div class="dz" id="adz" onclick="document.getElementById('af2').click()" ondragover="dov(event,'adz')" ondragleave="dlv('adz')" ondrop="ddp(event,'att')">
@@ -419,7 +419,10 @@ const nv=v=>Number(v)||0;
 function findPP(date){return PP.find(p=>date>=p.start_date&&date<=p.end_date)||null;}
 
 // ── CSV export helpers — always quote text fields to preserve leading zeros
-function qv(v){return'"'+String(v==null?'':v).replace(/"/g,'""')+'"';}
+function qv(v){
+  var s=String(v==null?'':v).replace(/"/g,'""');
+  return '="'+s+'"';
+}
 function nqv(v){return String(v==null?'':v);}
 
 // ── Load all data
@@ -752,7 +755,9 @@ function switchPPT(t){
 // ── Export CSV (real download, leading zeros preserved)
 function exportCSV(){
   const p=PP.find(x=>x.id===curPP);if(!p)return;
-  const hdr=[qv('Employee ID'),qv('Name'),qv('Position'),qv('Monthly Rate'),qv('Days Present'),qv('Days Absent'),qv('Basic Earned'),qv('De Minimis'),qv('Misc Bonus'),qv('Att OT min'),qv('Manual OT min'),qv('Total OT min'),qv('OT Bonus'),qv('Late min'),qv('Late Penalty'),qv('Absent Penalty'),qv('Cash Advance'),qv('PAG-IBIG'),qv('SSS'),qv('PhilHealth'),qv('Gov Deductions'),qv('Gross'),qv('Total Deductions'),qv('Net Pay'),qv('Bank'),qv('Account Number')].join(',');
+  // Headers use plain quotes (not formula format)
+  const hq=v=>'"'+String(v)+'"';
+  const hdr=[hq('Employee ID'),hq('Name'),hq('Position'),hq('Monthly Rate'),hq('Days Present'),hq('Days Absent'),hq('Basic Earned'),hq('De Minimis'),hq('Misc Bonus'),hq('Att OT min'),hq('Manual OT min'),hq('Total OT min'),hq('OT Bonus'),hq('Late min'),hq('Late Penalty'),hq('Absent Penalty'),hq('Cash Advance'),hq('PAG-IBIG'),hq('SSS'),hq('PhilHealth'),hq('Gov Deductions'),hq('Gross'),hq('Total Deductions'),hq('Net Pay'),hq('Bank'),hq('Account Number')].join(',');
   const rows=E.map(e=>{
     const r=calc(e,p.start_date,p.end_date);
     return[qv(e.id),qv(en(e)),qv(e.pos),nqv(e.monthly),nqv(r.present),nqv(r.absent),nqv(r.basic.toFixed(2)),nqv(r.pd.dmTotal.toFixed(2)),nqv(r.pd.misc.toFixed(2)),nqv(Math.round(r.attOT)),nqv(Math.round(r.manOT)),nqv(Math.round(r.totalOT)),nqv(r.otBonus.toFixed(2)),nqv(Math.round(r.lateMins)),nqv(r.latePen.toFixed(2)),nqv(r.absPen.toFixed(2)),nqv(r.caAmt.toFixed(2)),nqv(nv(e.pagibig).toFixed(2)),nqv(nv(e.sss).toFixed(2)),nqv(nv(e.philhealth).toFixed(2)),nqv(r.govDed.toFixed(2)),nqv(r.gross.toFixed(2)),nqv(r.totalDed.toFixed(2)),nqv(r.net.toFixed(2)),qv(e.bank||''),qv(e.acc||'')].join(',');
@@ -886,7 +891,15 @@ function showER(m,e){const el=document.getElementById('empres');el.className='re
 
 // ── Bulk import
 function rImp(){document.getElementById('etpl').value=ETPL;document.getElementById('atpl').value=ATPL;}
-function cpTpl(ta,lb){const el=document.getElementById(ta);el.select();navigator.clipboard?.writeText(el.value).catch(()=>document.execCommand('copy'));const l=document.getElementById(lb);l.style.display='inline';setTimeout(()=>l.style.display='none',2000);}
+function cpTpl(taId,fname){
+  const el=document.getElementById(taId);
+  const content=el.value;
+  const blob=new Blob([content],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=fname;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  toast('Template downloaded!');
+}
 function switchIT(t){document.querySelectorAll('#page-import .st').forEach(b=>b.classList.remove('active'));document.querySelectorAll('#page-import .st').forEach(b=>{if(b.getAttribute('onclick').includes("'"+t+"'"))b.classList.add('active');});document.getElementById('it-emp').style.display=t==='emp'?'block':'none';document.getElementById('it-att').style.display=t==='att'?'block':'none';}
 function pCSV(t){const ln=t.trim().split('\n').filter(l=>l.trim());const hd=ln[0].split(',').map(h=>h.trim().toLowerCase());return ln.slice(1).map(l=>{const v=l.split(',').map(x=>x.trim());const o={};hd.forEach((h,i)=>o[h]=v[i]||'');return o;});}
 function dov(e,id){e.preventDefault();document.getElementById(id).classList.add('ov');}
