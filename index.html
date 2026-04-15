@@ -1,0 +1,968 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your VA Partner — Payroll</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;color:#111;background:#f0f2f5}
+.app{display:flex;min-height:100vh}
+.sidebar{width:200px;min-width:200px;background:#1a1a2e;display:flex;flex-direction:column}
+.brand{padding:18px 14px 10px;font-size:12px;font-weight:700;color:#fff;letter-spacing:.5px;border-bottom:1px solid #2d2d50}
+.brand small{display:block;font-size:10px;font-weight:400;color:#9ca3af;margin-top:2px}
+.nb{display:flex;align-items:center;gap:8px;padding:9px 14px;cursor:pointer;border:none;background:none;color:#e5e7eb;font-size:12px;text-align:left;width:100%;font-weight:500}
+.nb:hover{background:#2d2d50;color:#fff}
+.nb.active{background:#16213e;color:#fff;border-left:3px solid #4ade80;font-weight:700}
+.nb.danger{color:#fca5a5}
+.nb.danger:hover{background:#3a1010}
+.ndiv{height:1px;background:#2d2d50;margin:4px 0}
+.main{flex:1;overflow:auto;padding:20px}
+.page{display:none}.page.active{display:block}
+h2{font-size:18px;font-weight:700;margin-bottom:14px}
+h3{font-size:14px;font-weight:700;margin-bottom:10px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:10px;margin-bottom:16px}
+.card{background:#fff;border-radius:10px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.cl{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+.cv{font-size:20px;font-weight:700}
+.cv.g{color:#16a34a}.cv.r{color:#dc2626}.cv.a{color:#d97706}.cv.b{color:#2563eb}.cv.p{color:#7c3aed}
+.panel{background:#fff;border-radius:10px;padding:16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.row{display:flex;gap:10px;align-items:center;margin-bottom:8px}
+.row label{font-size:12px;color:#555;min-width:120px;font-weight:500}
+input,select,textarea{padding:6px 9px;border:1px solid #ddd;border-radius:6px;font-size:13px;background:#fff;color:#111;width:100%;outline:none}
+input:focus,select:focus{border-color:#4ade80}
+textarea{font-family:monospace;font-size:11px;resize:vertical}
+button{padding:6px 14px;border:1px solid #ddd;border-radius:6px;background:#fff;color:#111;cursor:pointer;font-size:12px}
+button:hover{background:#f5f5f5}
+.bp{background:#1a1a2e;color:#fff;border-color:#1a1a2e}
+.bp:hover{background:#2d2d50}
+.bg2{background:#16a34a;color:#fff;border-color:#16a34a}
+.bg2:hover{background:#15803d}
+.bd{background:#fee2e2;color:#dc2626;border-color:#fca5a5}
+.bds{background:#dc2626;color:#fff;border-color:#dc2626}
+.bs{padding:4px 9px;font-size:11px}
+.fe{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+.fr{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.fg{display:flex;flex-direction:column;gap:3px}
+.fg label{font-size:11px;color:#666;font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:7px 9px;font-weight:700;border-bottom:2px solid #f0f0f0;color:#666;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+td{padding:7px 9px;border-bottom:1px solid #f8f8f8}
+tr:hover td{background:#fafafa}
+.bx{display:inline-block;padding:2px 7px;border-radius:12px;font-size:10px;font-weight:700}
+.xg{background:#dcfce7;color:#166534}.xr{background:#fee2e2;color:#991b1b}.xa{background:#fef3c7;color:#92400e}.xb{background:#dbeafe;color:#1e40af}.xp{background:#ede9fe;color:#5b21b6}.xd{background:#f0fdf4;color:#15803d;border:1px solid #86efac}
+.tab-bar{display:flex;gap:2px;margin-bottom:12px;border-bottom:2px solid #f0f0f0;flex-wrap:wrap}
+.tab{padding:6px 12px;cursor:pointer;font-size:12px;color:#888;border-bottom:2px solid transparent;margin-bottom:-2px}
+.tab.active{color:#1a1a2e;border-bottom-color:#4ade80;font-weight:700}
+.stbar{display:flex;gap:3px;margin-bottom:12px}
+.st{padding:5px 12px;cursor:pointer;font-size:11px;color:#666;border:1px solid #ddd;border-radius:5px;background:#fff}
+.st.active{background:#1a1a2e;color:#fff;border-color:#1a1a2e}
+.pptab{padding:7px 10px;cursor:pointer;font-size:11px;color:#555;border:1px solid #e5e5e5;border-radius:7px;background:#fff;margin-bottom:4px;display:block;width:100%;text-align:left}
+.pptab:hover{background:#f5f5f5}
+.pptab.active{background:#1a1a2e;color:#fff;border-color:#1a1a2e}
+.ec{display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid #eee;border-radius:8px;cursor:pointer;margin-bottom:5px;background:#fff}
+.ec:hover{border-color:#ccc}
+.ec.sel{border-color:#4ade80;background:#f0fdf4}
+.av{width:34px;height:34px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#1e40af;flex-shrink:0}
+.stitle{font-size:10px;font-weight:700;letter-spacing:.6px;color:#999;margin-bottom:4px;margin-top:12px;text-transform:uppercase}
+.sal{background:#f8f8f8;border-radius:7px;padding:10px;margin-top:8px;border:1px solid #eee}
+.sr{display:flex;justify-content:space-between;padding:2px 0;font-size:11px;color:#555}
+.sr.tot{font-weight:700;border-top:1px solid #ddd;margin-top:3px;padding-top:5px;font-size:12px;color:#111}
+.dmt{font-size:9px;background:#ede9fe;color:#5b21b6;padding:1px 4px;border-radius:6px;margin-left:2px}
+.dz{border:2px dashed #ddd;border-radius:8px;padding:24px;text-align:center;color:#999;font-size:12px;cursor:pointer}
+.dz:hover,.dz.ov{background:#f0fdf4;border-color:#4ade80}
+.dz input{display:none}
+.res{margin-top:6px;padding:8px 12px;border-radius:7px;font-size:12px}
+.res.ok{background:#dcfce7;color:#166534}
+.res.err{background:#fee2e2;color:#991b1b}
+.ds{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f5f5f5;font-size:12px}
+.ds:last-child{border-bottom:none}
+.lp{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;cursor:pointer;border:1px solid #ddd;margin:2px;background:#fff}
+.lp.on{background:#1a1a2e;color:#fff;border-color:#1a1a2e}
+#loading{position:fixed;inset:0;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;z-index:9998;flex-direction:column;gap:12px}
+.spin{width:32px;height:32px;border:3px solid #eee;border-top-color:#4ade80;border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;padding:9px 20px;border-radius:7px;font-size:12px;z-index:9999;display:none;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+</style>
+</head>
+<body>
+
+<div id="loading"><div class="spin"></div><span id="ldmsg" style="font-size:13px;color:#555">Connecting...</span></div>
+
+<div class="app" id="app" style="display:none">
+<div class="sidebar">
+  <div class="brand">YOUR VA PARTNER<small>Payroll System</small></div>
+  <button class="nb active" onclick="S('dashboard')">⬡ Dashboard</button>
+  <button class="nb" onclick="S('attendance')">○ Attendance</button>
+  <button class="nb" onclick="S('overtime')">▲ Overtime</button>
+  <button class="nb" onclick="S('absences')">□ Absences</button>
+  <button class="nb" onclick="S('cashadvance')">₱ Cash advance</button>
+  <button class="nb" onclick="S('payperiod')">▣ Pay periods</button>
+  <button class="nb" onclick="S('employees')">▪ Employees</button>
+  <button class="nb" onclick="S('import')">↑ Bulk import</button>
+  <div style="flex:1"></div>
+  <div class="ndiv"></div>
+  <button class="nb danger" onclick="S('purge')">⊘ Purge data</button>
+</div>
+<div class="main">
+
+<div class="page active" id="page-dashboard">
+  <h2>Dashboard</h2>
+  <div class="cards" id="dc"></div>
+  <div class="panel"><h3>Team overview</h3><div style="overflow-x:auto">
+    <table><thead><tr><th>Name</th><th>Rate</th><th>Basic</th><th>De minimis</th><th>Misc.</th><th>Present</th><th>Late</th><th>OT min</th><th>Absent</th><th>Est. net</th></tr></thead>
+    <tbody id="dt"></tbody></table></div></div>
+</div>
+
+<div class="page" id="page-attendance">
+  <h2>Log attendance</h2>
+  <div class="panel">
+    <div class="row"><label>Employee</label><select id="ae"></select></div>
+    <div class="row"><label>Date</label><input type="date" id="ad"></div>
+    <div class="row"><label>Time in</label><input type="time" id="ai" value="20:00"></div>
+    <div class="row"><label>Time out</label><input type="time" id="ao" value="05:00"></div>
+    <div style="padding:7px 10px;background:#fffbeb;border-radius:6px;font-size:11px;color:#92400e;margin-bottom:8px"><strong>OT auto-detection:</strong> Before 8PM or after 5AM = overtime at 2× rate.</div>
+    <div class="fe"><button onclick="markAbsent()">Mark absent</button><button class="bp" onclick="logAtt()">Save record</button></div>
+  </div>
+  <div class="panel"><h3>Log</h3><div class="tab-bar" id="att-tabs"></div>
+    <table><thead><tr><th>Date</th><th>In</th><th>Out</th><th>Hrs</th><th>Late</th><th>OT</th><th>Status</th><th></th></tr></thead>
+    <tbody id="attb"></tbody></table></div>
+</div>
+
+<div class="page" id="page-overtime">
+  <h2>Manual overtime</h2>
+  <div class="panel">
+    <p style="font-size:12px;color:#666;margin-bottom:10px">Rate: <strong>2× hourly rate</strong>. Combines with auto-detected OT from attendance.</p>
+    <div class="row"><label>Employee</label><select id="oe" onchange="calcOTP()"></select></div>
+    <div class="row"><label>Date</label><input type="date" id="od"></div>
+    <div class="row"><label>Hours</label><input type="number" id="oh" min="0" max="23" value="0" style="width:70px" oninput="calcOTP()"></div>
+    <div class="row"><label>Minutes</label><input type="number" id="om2" min="0" max="59" value="0" style="width:70px" oninput="calcOTP()"></div>
+    <div class="row"><label>Note</label><input type="text" id="on2" placeholder="optional"></div>
+    <div id="otp" style="display:none;padding:8px 12px;background:#eff6ff;border-radius:6px;font-size:12px;color:#1e40af;margin-bottom:8px"></div>
+    <div class="fe"><button class="bg2" onclick="addOT()">Add overtime</button></div>
+  </div>
+  <div class="panel"><h3>Manual OT records</h3>
+    <table><thead><tr><th>Employee</th><th>Date</th><th>Duration</th><th>OT pay</th><th>Note</th><th></th></tr></thead>
+    <tbody id="otb"></tbody></table>
+    <div id="otempty" style="text-align:center;padding:20px;color:#999;font-size:12px;display:none">No records yet</div></div>
+</div>
+
+<div class="page" id="page-absences">
+  <h2>Absence management</h2>
+  <div class="panel"><h3>Unresolved absences</h3>
+    <table><thead><tr><th>Name</th><th>Date</th><th>Mark as</th><th>Pay</th><th>Action</th></tr></thead>
+    <tbody id="ab"></tbody></table>
+    <div id="abe" style="text-align:center;padding:20px;color:#999;font-size:12px;display:none">None</div></div>
+  <div class="panel"><h3>Leave records</h3>
+    <table><thead><tr><th>Name</th><th>Date</th><th>Type</th><th>Pay</th><th></th></tr></thead>
+    <tbody id="lb"></tbody></table>
+    <div id="lbe" style="text-align:center;padding:20px;color:#999;font-size:12px;display:none">None</div></div>
+</div>
+
+<div class="page" id="page-cashadvance">
+  <h2>Cash advance</h2>
+  <div class="panel"><h3>Log cash advance</h3>
+    <div class="row"><label>Employee</label><select id="ce"></select></div>
+    <div class="row"><label>Date</label><input type="date" id="cd"></div>
+    <div class="row"><label>Amount (₱)</label><input type="number" id="ca2" placeholder="0"></div>
+    <div class="row"><label>Note</label><input type="text" id="cn"></div>
+    <div class="fe"><button class="bp" onclick="addCA()">Add cash advance</button></div>
+  </div>
+  <div class="panel"><h3>Records</h3>
+    <p style="font-size:11px;color:#888;margin-bottom:10px">Status becomes <strong style="color:#15803d">✓ Deducted</strong> once a pay period covering that date is created.</p>
+    <table><thead><tr><th>Employee</th><th>Date</th><th>Amount</th><th>Note</th><th>Status</th><th>Pay period</th><th></th></tr></thead>
+    <tbody id="cab"></tbody></table>
+    <div id="cae" style="text-align:center;padding:20px;color:#999;font-size:12px;display:none">No records yet</div></div>
+</div>
+
+<div class="page" id="page-payperiod">
+  <h2>Pay periods</h2>
+  <div style="display:grid;grid-template-columns:200px 1fr;gap:12px;align-items:start">
+    <div>
+      <div class="panel" style="margin-bottom:8px">
+        <h3 style="margin-bottom:10px">New period</h3>
+        <div class="fg" style="margin-bottom:8px"><label>Start date</label><input type="date" id="pps"></div>
+        <div class="fg" style="margin-bottom:10px"><label>End date</label><input type="date" id="ppe"></div>
+        <button class="bp" style="width:100%" onclick="createPP()">Create period</button>
+      </div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:.5px;color:#999;margin-bottom:4px">SAVED PERIODS</div>
+      <div id="pplist"></div>
+    </div>
+    <div>
+      <div id="ppd" style="display:none">
+        <div class="panel" style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+            <div><div style="font-size:15px;font-weight:700" id="pptitle"></div><div style="font-size:11px;color:#888;margin-top:2px" id="ppsub"></div></div>
+            <div class="fr">
+              <button class="bs" onclick="exportCSV()">↓ CSV</button>
+              <button class="bs bg2" onclick="exportPDF()">↓ PDF</button>
+              <button class="bs bd" onclick="deletePP()">Delete</button>
+            </div>
+          </div>
+        </div>
+        <div class="cards" id="ppc"></div>
+        <div class="stbar">
+          <button class="st active" onclick="switchPPT('payroll')">Payroll summary</button>
+          <button class="st" onclick="switchPPT('payslips')">All payslips</button>
+        </div>
+        <div id="ppt-payroll"><div class="panel"><div style="overflow-x:auto">
+          <table><thead><tr><th>Name</th><th>Days</th><th>Basic</th><th>DM</th><th>Misc</th><th>OT</th><th>Late</th><th>Absent</th><th>C/A</th><th>Gov</th><th>Net</th></tr></thead>
+          <tbody id="ppb"></tbody><tfoot id="ppf"></tfoot></table></div></div></div>
+        <div id="ppt-payslips" style="display:none"><div id="ppslips"></div></div>
+      </div>
+      <div id="ppempty" style="display:flex;align-items:center;justify-content:center;padding:40px;color:#999;font-size:12px">Create or select a pay period</div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-employees">
+  <h2>Employees</h2>
+  <div style="display:grid;grid-template-columns:200px 1fr;gap:12px;align-items:start">
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:12px;font-weight:700">Roster</span>
+        <button class="bs bp" onclick="newEmp()">+ Add</button>
+      </div>
+      <div id="emplist"></div>
+    </div>
+    <div id="empeditor" style="display:none"><div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3 id="emptitle">Details</h3>
+        <button class="bs bd" id="empdelbtn" onclick="deleteEmp()">Delete</button>
+      </div>
+      <div class="stitle">Basic info</div>
+      <div class="g2" style="margin-bottom:10px">
+        <div class="fg"><label>First name</label><input id="efn"></div>
+        <div class="fg"><label>Last name</label><input id="eln"></div>
+        <div class="fg"><label>Employee ID</label><input id="eid"></div>
+        <div class="fg"><label>Position</label><input id="epos"></div>
+        <div class="fg"><label>Date joined</label><input id="ejoin" type="date"></div>
+        <div class="fg"><label>Status</label><select id="estat"><option>Full Time</option><option>Part Time</option><option>Contractual</option></select></div>
+      </div>
+      <div class="stitle">Salary & bank</div>
+      <div class="g2" style="margin-bottom:8px">
+        <div class="fg"><label>Monthly rate (₱)</label><input id="erate" type="number" oninput="prevSal()"></div>
+        <div class="fg"><label>Bank</label><input id="ebank"></div>
+        <div class="fg" style="grid-column:1/-1"><label>Account number</label><input id="eacc"></div>
+      </div>
+      <div id="salbox" style="display:none"><div class="sal">
+        <div style="font-size:9px;font-weight:700;color:#999;margin-bottom:5px;letter-spacing:.6px">MONTHLY BREAKDOWN</div>
+        <div class="sr"><span>Basic</span><span id="sbasic"></span></div>
+        <div id="sdm" style="display:none">
+          <div class="sr"><span>Rice <span class="dmt">DM</span></span><span id="srice"></span></div>
+          <div class="sr"><span>Medical cash <span class="dmt">DM</span></span><span id="smedcash"></span></div>
+          <div class="sr"><span>Clothing <span class="dmt">DM</span></span><span id="sclothing"></span></div>
+          <div class="sr"><span>Healthcare <span class="dmt">DM</span></span><span id="smedical"></span></div>
+          <div class="sr"><span>Laundry <span class="dmt">DM</span></span><span id="slaundry"></span></div>
+          <div class="sr"><span>Meal <span class="dmt">DM</span></span><span id="smeal"></span></div>
+        </div>
+        <div class="sr" id="smiscrow" style="display:none"><span>Misc. bonus</span><span id="smisc"></span></div>
+        <div class="sr tot"><span>Total</span><span id="stotal"></span></div>
+        <div id="srates" style="margin-top:6px;font-size:10px;color:#2563eb;padding-top:5px;border-top:1px solid #eee"></div>
+      </div></div>
+      <div class="stitle" style="margin-top:10px">Gov. contributions (per period)</div>
+      <div class="g3" style="margin-bottom:10px">
+        <div class="fg"><label>PAG-IBIG</label><input id="epag" type="number" value="0"></div>
+        <div class="fg"><label>SSS</label><input id="esss" type="number" value="0"></div>
+        <div class="fg"><label>PhilHealth</label><input id="ephil" type="number" value="0"></div>
+      </div>
+      <div class="fe"><button onclick="cancelEmp()">Cancel</button><button class="bp" onclick="saveEmp()">Save</button></div>
+      <div id="empres"></div>
+    </div></div>
+  </div>
+</div>
+
+<div class="page" id="page-import">
+  <h2>Bulk import</h2>
+  <div class="stbar">
+    <button class="st active" onclick="switchIT('emp')">Employees</button>
+    <button class="st" onclick="switchIT('att')">Attendance</button>
+  </div>
+  <div id="it-emp">
+    <div class="panel"><h3>Template</h3>
+      <textarea id="etpl" rows="3" readonly onclick="this.select()"></textarea>
+      <div class="fr" style="margin-top:6px"><button onclick="cpTpl('etpl','ecop')">Copy</button><span id="ecop" style="display:none;font-size:11px;color:#16a34a;margin-left:6px">Copied!</span></div>
+    </div>
+    <div class="panel"><h3>Upload CSV</h3>
+      <div class="dz" id="edz" onclick="document.getElementById('ef2').click()" ondragover="dov(event,'edz')" ondragleave="dlv('edz')" ondrop="ddp(event,'emp')">
+        <input type="file" id="ef2" accept=".csv" onchange="hEmpF(event)">
+        <div style="font-size:22px">↑</div><div style="font-weight:700;margin:3px 0">Drop CSV or click</div>
+      </div><div id="eir"></div>
+    </div>
+    <div class="panel" id="eprev" style="display:none">
+      <h3>Preview <span id="epct" style="font-weight:400;color:#888"></span></h3>
+      <div style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Name</th><th>Position</th><th>Rate</th><th>Basic</th><th>DM</th><th>Misc</th><th>Status</th></tr></thead><tbody id="eptb"></tbody></table></div>
+      <div class="fe"><button onclick="canEmpI()">Cancel</button><button class="bp" onclick="confEmpI()">Import all</button></div>
+    </div>
+  </div>
+  <div id="it-att" style="display:none">
+    <div class="panel"><h3>Template</h3>
+      <textarea id="atpl" rows="5" readonly onclick="this.select()"></textarea>
+      <div class="fr" style="margin-top:6px"><button onclick="cpTpl('atpl','acop')">Copy</button><span id="acop" style="display:none;font-size:11px;color:#16a34a;margin-left:6px">Copied!</span></div>
+    </div>
+    <div class="panel"><h3>Upload CSV</h3>
+      <div class="dz" id="adz" onclick="document.getElementById('af2').click()" ondragover="dov(event,'adz')" ondragleave="dlv('adz')" ondrop="ddp(event,'att')">
+        <input type="file" id="af2" accept=".csv" onchange="hAttF(event)">
+        <div style="font-size:22px">↑</div><div style="font-weight:700;margin:3px 0">Drop CSV or click</div>
+      </div><div id="air"></div>
+    </div>
+    <div class="panel" id="aprev" style="display:none">
+      <h3>Preview <span id="apct" style="font-weight:400;color:#888"></span></h3>
+      <div style="overflow-x:auto"><table><thead><tr><th>Emp ID</th><th>Name</th><th>Date</th><th>In</th><th>Out</th><th>Late</th><th>OT</th><th>Status</th></tr></thead><tbody id="aptb"></tbody></table></div>
+      <div class="fe"><button onclick="canAttI()">Cancel</button><button class="bp" onclick="confAttI()">Import all</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-purge">
+  <h2>Purge data</h2>
+  <div class="panel"><h3>Summary</h3><div id="purgst"></div></div>
+  <div class="panel"><h3>Selective purge</h3>
+    <div class="ds"><span>Attendance</span><button class="bs bd" onclick="purge1('att')">Clear</button></div>
+    <div class="ds"><span>Overtime</span><button class="bs bd" onclick="purge1('ot')">Clear</button></div>
+    <div class="ds"><span>Leaves</span><button class="bs bd" onclick="purge1('lv')">Clear</button></div>
+    <div class="ds"><span>Cash advances</span><button class="bs bd" onclick="purge1('ca')">Clear</button></div>
+    <div class="ds"><span>Pay periods</span><button class="bs bd" onclick="purge1('pp')">Clear</button></div>
+    <div class="ds"><span>Employees</span><button class="bs bd" onclick="purge1('emp')">Clear</button></div>
+  </div>
+  <div class="panel" style="border:1px solid #fca5a5">
+    <h3 style="color:#dc2626">Purge all</h3>
+    <p style="font-size:12px;color:#666;margin-bottom:8px">Type <strong>DELETE ALL</strong> to confirm.</p>
+    <input type="text" id="purgin" placeholder="DELETE ALL" oninput="chkPurge()">
+    <div class="fe" style="margin-top:8px"><button class="bds" id="purgbtn" onclick="purgeAll()" disabled style="opacity:.4;cursor:not-allowed">Purge all</button></div>
+    <div id="purgres"></div>
+  </div>
+</div>
+
+</div></div>
+<div id="toast"></div>
+
+<script>
+// ── Supabase
+const SB_URL='https://bvtcfkawdgmpgumlalyv.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2dGNma2F3ZGdtcGd1bWxhbHl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyNjk2OTQsImV4cCI6MjA5MTg0NTY5NH0.6KnLxyP2jNH-_SrgFeCaaURobfV2x7edXK-7fct5ufw';
+const {createClient}=supabase;
+const db=createClient(SB_URL,SB_KEY);
+
+// ── Constants
+const BASE=10000,SS=20*60,SE=29*60;
+const DMC={rice:2000,medcash:250,clothing:7000/12,medical:10000/12,laundry:300,meal:100};
+const DMO=['rice','medcash','clothing','medical','laundry','meal'];
+const DML={rice:'Rice subsidy',medcash:'Medical cash',clothing:'Clothing',medical:'Healthcare',laundry:'Laundry',meal:'Meal'};
+const ETPL='id,first_name,last_name,position,monthly_rate,date_of_joining,bank,account_number,pagibig,sss,philhealth\n007,Evy,Bastismo,Account Manager,18000,2023-04-17,GotYme,010300110004,0,0,0';
+const ATPL='employee_id,date,time_in,time_out\n007,2025-07-09,20:00,05:00\n007,2025-07-10,19:45,05:30\n008,2025-07-09,,';
+
+// ── State
+let E=[],ATT=[],OT=[],LV=[],CA=[],PP=[];
+let curPP=null,editEId=null,pendE=[],pendA=[];
+const pendL={};
+
+// ── Loading
+function setLd(m){document.getElementById('ldmsg').textContent=m;document.getElementById('loading').style.display='flex';}
+function hideLd(){document.getElementById('loading').style.display='none';}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',3200);}
+
+// ── Salary engine
+function getSB(m){
+  if(m<=BASE)return{basic:m,rice:0,medcash:0,clothing:0,medical:0,laundry:0,meal:0,misc:0,dmTotal:0};
+  const s=m-BASE;let r=s;const dm={rice:0,medcash:0,clothing:0,medical:0,laundry:0,meal:0};
+  for(const k of DMO){if(r<=0)break;const f=Math.min(DMC[k],r);dm[k]=f;r-=f;}
+  const dt=Object.values(dm).reduce((a,v)=>a+v,0);
+  return{basic:BASE,...dm,misc:Math.max(0,s-dt),dmTotal:dt};
+}
+function getPD(m){const b=getSB(m);return Object.fromEntries([...Object.entries(b).map(([k,v])=>[k,v/2])]);}
+function hrR(m){return(m/2)/(12*9);}
+function otR(m){return hrR(m)/60*2;}
+
+// ── Time helpers
+function aOT(i,o){
+  const pi=s=>{if(!s||!s.includes(':'))return null;const[h,m]=s.split(':').map(Number);return h*60+m;};
+  const im=pi(i),om=pi(o);if(im===null||om===null)return{lateMins:0,otMins:0,hours:0};
+  let out=om;if(out<im)out+=24*60;
+  return{lateMins:Math.max(0,im-SS),otMins:Math.max(0,SS-im)+Math.max(0,out-SE),hours:Math.round((out-im)/60*10)/10};
+}
+
+// ── Payroll calc
+function calc(e,sd,ed){
+  const ar=ATT.filter(r=>r.emp_id===e.id);
+  const work=ar.filter(r=>r.type==='work');
+  const present=work.length;
+  const lateMins=work.reduce((s,r)=>s+(r.late_mins||0),0);
+  const attOT=work.reduce((s,r)=>s+(r.ot_mins||0),0);
+  const manOT=OT.filter(o=>o.emp_id===e.id&&(!sd||o.date>=sd)&&(!ed||o.date<=ed)).reduce((s,o)=>s+(o.hours||0)*60+(o.minutes||0),0);
+  const totalOT=attOT+manOT;
+  const absent=Math.max(0,ar.filter(r=>r.type==='absent').length-LV.filter(l=>l.emp_id===e.id&&l.with_pay).length);
+  const payDays=present+absent;
+  const pd=getPD(e.monthly);
+  const db=payDays>0?pd.basic/payDays:0;
+  const basic=present*db;
+  const latePen=lateMins*(hrR(e.monthly)/60);
+  const absPen=absent*db;
+  const otBonus=totalOT*otR(e.monthly);
+  const caAmt=CA.filter(c=>c.emp_id===e.id&&(!sd||c.date>=sd)&&(!ed||c.date<=ed)).reduce((s,c)=>s+c.amount,0);
+  const govDed=(+e.pagibig||0)+(+e.sss||0)+(+e.philhealth||0);
+  const gross=basic+pd.dmTotal+pd.misc+otBonus;
+  const totalDed=latePen+absPen+caAmt+govDed;
+  return{present,lateMins,attOT,manOT,totalOT,absent,payDays,pd,basic,otBonus,latePen,absPen,caAmt,govDed,gross,totalDed,net:Math.max(0,gross-totalDed)};
+}
+
+// ── Format
+const fc=v=>'₱'+v.toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fk=v=>'₱'+Math.round(v).toLocaleString();
+const en=e=>e.fn+' '+e.ln;
+const ini=e=>(e.fn[0]||'')+(e.ln[0]||'');
+const nv=v=>Number(v)||0;
+function findPP(date){return PP.find(p=>date>=p.start_date&&date<=p.end_date)||null;}
+
+// ── CSV export helpers — always quote text fields to preserve leading zeros
+function qv(v){return'"'+String(v==null?'':v).replace(/"/g,'""')+'"';}
+function nqv(v){return String(v==null?'':v);}
+
+// ── Load all data
+async function loadAll(){
+  setLd('Loading data...');
+  try{
+    const [r1,r2,r3,r4,r5,r6]=await Promise.all([
+      db.from('employees').select('*').order('fn'),
+      db.from('attendance').select('*').order('date'),
+      db.from('overtime_records').select('*').order('date'),
+      db.from('leaves').select('*').order('date'),
+      db.from('cash_advances').select('*').order('date'),
+      db.from('pay_periods').select('*').order('created_at',{ascending:false})
+    ]);
+    E=r1.data||[];ATT=r2.data||[];OT=r3.data||[];LV=r4.data||[];CA=r5.data||[];PP=r6.data||[];
+  }catch(e){toast('DB error: '+e.message);}
+  hideLd();
+}
+
+// ── Nav
+function S(p){
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(x=>x.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  document.querySelectorAll('.nb').forEach(b=>{if(b.getAttribute('onclick')?.includes("'"+p+"'"))b.classList.add('active');});
+  ({dashboard:rDash,attendance:rAtt,overtime:rOTp,absences:rAbs,cashadvance:rCA,payperiod:rPP,employees:rEmps,import:rImp,purge:rPurge})[p]?.();
+}
+
+// ── Dashboard
+function rDash(){
+  let tp=0,tl=0,tot=0,ta=0,tn=0;
+  const rows=E.map(e=>{
+    const r=calc(e,'','');const b=getSB(e.monthly);const ab=e.monthly>BASE;
+    tp+=r.present;tl+=Math.round(r.lateMins);tot+=Math.round(r.totalOT);ta+=r.absent;tn+=r.net;
+    return`<tr><td><strong>${en(e)}</strong></td><td>${fk(e.monthly)}</td><td>${fk(b.basic)}</td><td>${ab?`<span class="bx xp">${fk(b.dmTotal)}</span>`:'—'}</td><td>${ab&&b.misc>0?fk(b.misc):'—'}</td><td>${r.present}</td><td>${Math.round(r.lateMins)}</td><td>${Math.round(r.totalOT)}</td><td>${r.absent}</td><td><strong>${fc(r.net)}</strong></td></tr>`;
+  });
+  document.getElementById('dt').innerHTML=rows.join('');
+  document.getElementById('dc').innerHTML=`
+    <div class="card"><div class="cl">Employees</div><div class="cv">${E.length}</div></div>
+    <div class="card"><div class="cl">Present</div><div class="cv g">${tp}</div></div>
+    <div class="card"><div class="cl">Late min</div><div class="cv a">${tl}</div></div>
+    <div class="card"><div class="cl">OT min</div><div class="cv b">${tot}</div></div>
+    <div class="card"><div class="cl">Absent</div><div class="cv r">${ta}</div></div>
+    <div class="card"><div class="cl">Est. payroll</div><div class="cv p">₱${Math.round(tn).toLocaleString()}</div></div>`;
+}
+
+// ── Attendance
+function rAtt(){
+  const sel=document.getElementById('ae');sel.innerHTML='';E.forEach(e=>sel.innerHTML+=`<option value="${e.id}">${en(e)}</option>`);
+  const tabs=document.getElementById('att-tabs');tabs.innerHTML='';
+  E.forEach((e,i)=>{const t=document.createElement('div');t.className='tab'+(i===0?' active':'');t.textContent=e.fn;t.onclick=()=>{document.querySelectorAll('#att-tabs .tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');rAttT(e.id);};tabs.appendChild(t);});
+  if(!document.getElementById('ad').value)document.getElementById('ad').value=new Date().toISOString().split('T')[0];
+  rAttT(E[0]?.id);
+}
+function rAttT(id){
+  const recs=ATT.filter(r=>r.emp_id===id);const tb=document.getElementById('attb');tb.innerHTML='';
+  if(!recs.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:#999;padding:14px">No records</td></tr>';return;}
+  [...recs].sort((a,b)=>b.date.localeCompare(a.date)).forEach(r=>{
+    if(r.type==='work'){tb.innerHTML+=`<tr><td>${r.date}</td><td>${r.time_in||'—'}</td><td>${r.time_out||'—'}</td><td>${r.hours||0}h</td><td>${r.late_mins>0?`<span class="bx xa">${Math.round(r.late_mins)}m</span>`:'—'}</td><td>${r.ot_mins>0?`<span class="bx xb">${Math.round(r.ot_mins)}m</span>`:'—'}</td><td><span class="bx xg">Present</span></td><td><button class="bs bd" onclick="delAtt(${r.id},'${id}')">×</button></td></tr>`;}
+    else{const l=LV.find(x=>x.emp_id===id&&x.date===r.date);tb.innerHTML+=`<tr><td>${r.date}</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>${l?`<span class="bx ${l.with_pay?'xb':'xa'}">${l.type}</span>`:'<span class="bx xr">Absent</span>'}</td><td><button class="bs bd" onclick="delAtt(${r.id},'${id}')">×</button></td></tr>`;}
+  });
+}
+async function logAtt(){
+  const empId=document.getElementById('ae').value,date=document.getElementById('ad').value;
+  const i=document.getElementById('ai').value,o=document.getElementById('ao').value;
+  if(!date||!i||!o){toast('Fill all fields');return;}
+  const{lateMins,otMins,hours}=aOT(i,o);
+  setLd('Saving...');
+  const existing=ATT.find(r=>r.emp_id===empId&&r.date===date);
+  if(existing){
+    const{error}=await db.from('attendance').update({type:'work',time_in:i,time_out:o,hours,late_mins:lateMins,ot_mins:otMins}).eq('id',existing.id);
+    if(error){hideLd();toast('Error: '+error.message);return;}
+    const idx=ATT.findIndex(r=>r.id===existing.id);ATT[idx]={...existing,type:'work',time_in:i,time_out:o,hours,late_mins:lateMins,ot_mins:otMins};
+  }else{
+    const{data,error}=await db.from('attendance').insert({emp_id:empId,type:'work',date,time_in:i,time_out:o,hours,late_mins:lateMins,ot_mins:otMins}).select().single();
+    if(error){hideLd();toast('Error: '+error.message);return;}
+    ATT.push(data);
+  }
+  hideLd();rAttT(empId);rDash();toast(`Saved! Late:${Math.round(lateMins)}m OT:${Math.round(otMins)}m`);
+}
+async function markAbsent(){
+  const empId=document.getElementById('ae').value,date=document.getElementById('ad').value;
+  if(!date){toast('Select a date');return;}
+  setLd('Saving...');
+  const existing=ATT.find(r=>r.emp_id===empId&&r.date===date);
+  if(existing){
+    await db.from('attendance').update({type:'absent',time_in:null,time_out:null,hours:0,late_mins:0,ot_mins:0}).eq('id',existing.id);
+    const idx=ATT.findIndex(r=>r.id===existing.id);ATT[idx]={...existing,type:'absent',time_in:null,time_out:null,hours:0,late_mins:0,ot_mins:0};
+  }else{
+    const{data}=await db.from('attendance').insert({emp_id:empId,type:'absent',date,hours:0,late_mins:0,ot_mins:0}).select().single();
+    if(data)ATT.push(data);
+  }
+  hideLd();rAttT(empId);rAbs();toast('Marked absent');
+}
+async function delAtt(id,empId){
+  if(!confirm('Delete this record?'))return;
+  setLd('Deleting...');
+  await db.from('attendance').delete().eq('id',id);
+  ATT=ATT.filter(r=>r.id!==id);
+  hideLd();rAttT(empId);rDash();
+}
+
+// ── Overtime
+function rOTp(){
+  const sel=document.getElementById('oe');sel.innerHTML='';E.forEach(e=>sel.innerHTML+=`<option value="${e.id}">${en(e)}</option>`);
+  if(!document.getElementById('od').value)document.getElementById('od').value=new Date().toISOString().split('T')[0];
+  rOTT();
+}
+function calcOTP(){
+  const id=document.getElementById('oe').value;
+  const h=parseInt(document.getElementById('oh').value)||0,m=parseInt(document.getElementById('om2').value)||0;
+  const e=E.find(x=>x.id===id);const prev=document.getElementById('otp');
+  if(!e||h+m===0){prev.style.display='none';return;}
+  const pay=(h*60+m)*otR(e.monthly);
+  prev.style.display='block';
+  prev.innerHTML=`<strong>${h}h ${m}min</strong> × 2× (${fc(otR(e.monthly))}/min) = <strong>${fc(pay)}</strong>`;
+}
+async function addOT(){
+  const empId=document.getElementById('oe').value,date=document.getElementById('od').value;
+  const h=parseInt(document.getElementById('oh').value)||0,m=parseInt(document.getElementById('om2').value)||0;
+  const note=document.getElementById('on2').value;
+  if(!date||(h===0&&m===0)){toast('Enter date and duration');return;}
+  setLd('Saving...');
+  const{data,error}=await db.from('overtime_records').insert({emp_id:empId,date,hours:h,minutes:m,note,source:'manual'}).select().single();
+  if(error){hideLd();toast('Error: '+error.message);return;}
+  OT.push(data);hideLd();
+  document.getElementById('oh').value=0;document.getElementById('om2').value=0;document.getElementById('on2').value='';document.getElementById('otp').style.display='none';
+  rOTT();rDash();
+  const e=E.find(x=>x.id===empId);toast(`OT added! ${h}h ${m}min = ${fc((h*60+m)*otR(e?.monthly||0))}`);
+}
+function rOTT(){
+  const tb=document.getElementById('otb');tb.innerHTML='';
+  const sorted=[...OT].sort((a,b)=>b.date.localeCompare(a.date));
+  document.getElementById('otempty').style.display=sorted.length?'none':'block';
+  sorted.forEach(o=>{
+    const e=E.find(x=>x.id===o.emp_id);const total=(o.hours||0)*60+(o.minutes||0);
+    const pay=e?total*otR(e.monthly):0;
+    tb.innerHTML+=`<tr><td><strong>${e?en(e):'—'}</strong></td><td>${o.date}</td><td>${o.hours||0}h ${o.minutes||0}min</td><td><span class="bx xb">${fc(pay)}</span></td><td style="color:#888">${o.note||'—'}</td><td><button class="bs bd" onclick="delOT(${o.id})">×</button></td></tr>`;
+  });
+}
+async function delOT(id){
+  if(!confirm('Delete?'))return;
+  setLd('Deleting...');
+  await db.from('overtime_records').delete().eq('id',id);
+  OT=OT.filter(o=>o.id!==id);hideLd();rOTT();rDash();
+}
+
+// ── Absences
+function rAbs(){
+  const tb=document.getElementById('ab'),lb=document.getElementById('lb');tb.innerHTML='';lb.innerHTML='';let ac=0,lc=0;
+  E.forEach(e=>{ATT.filter(r=>r.type==='absent'&&r.emp_id===e.id).forEach(r=>{
+    if(!LV.find(l=>l.emp_id===e.id&&l.date===r.date)){ac++;
+      tb.innerHTML+=`<tr><td><strong>${en(e)}</strong></td><td>${r.date}</td>
+        <td>
+          <span class="lp" id="lp-vl-${e.id}-${r.date}" onclick="selL('${e.id}','${r.date}','Vacation leave',true)">Vacation</span>
+          <span class="lp" id="lp-sl-${e.id}-${r.date}" onclick="selL('${e.id}','${r.date}','Sick leave',true)">Sick</span>
+          <span class="lp" id="lp-ul-${e.id}-${r.date}" onclick="selL('${e.id}','${r.date}','Unpaid leave',false)">Unpaid</span>
+          <span class="lp" id="lp-ab-${e.id}-${r.date}" onclick="selL('${e.id}','${r.date}','Absent',false)">Keep absent</span>
+        </td>
+        <td id="lpay-${e.id}-${r.date}">—</td>
+        <td><button class="bs bp" onclick="saveLv('${e.id}','${r.date}')">Save</button></td></tr>`;}
+  });});
+  document.getElementById('abe').style.display=ac?'none':'block';
+  LV.forEach(l=>{const e=E.find(x=>x.id===l.emp_id);if(!e)return;lc++;
+    lb.innerHTML+=`<tr><td>${en(e)}</td><td>${l.date}</td><td>${l.type}</td><td>${l.with_pay?'<span class="bx xg">Paid</span>':'<span class="bx xr">Unpaid</span>'}</td><td><button class="bs bd" onclick="delLv(${l.id})">×</button></td></tr>`;});
+  document.getElementById('lbe').style.display=lc?'none':'block';
+}
+function selL(id,date,type,wp){
+  const k=`${id}-${date}`;pendL[k]={type,withPay:wp};
+  ['vl','sl','ul','ab'].forEach(t=>{document.getElementById(`lp-${t}-${id}-${date}`)?.classList.remove('on');});
+  const map={'Vacation leave':'vl','Sick leave':'sl','Unpaid leave':'ul','Absent':'ab'};
+  document.getElementById(`lp-${map[type]}-${id}-${date}`)?.classList.add('on');
+  document.getElementById(`lpay-${id}-${date}`).innerHTML=wp?'<span class="bx xg">Yes</span>':'<span class="bx xr">No</span>';
+}
+async function saveLv(empId,date){
+  const p=pendL[`${empId}-${date}`];if(!p){toast('Select leave type');return;}
+  setLd('Saving...');
+  const existing=LV.find(l=>l.emp_id===empId&&l.date===date);
+  if(existing){
+    await db.from('leaves').update({type:p.type,with_pay:p.withPay}).eq('id',existing.id);
+    const idx=LV.findIndex(l=>l.id===existing.id);LV[idx]={...existing,type:p.type,with_pay:p.withPay};
+  }else{
+    const{data}=await db.from('leaves').insert({emp_id:empId,date,type:p.type,with_pay:p.withPay}).select().single();
+    if(data)LV.push(data);
+  }
+  hideLd();rAbs();rDash();toast('Leave saved');
+}
+async function delLv(id){
+  setLd('Deleting...');
+  await db.from('leaves').delete().eq('id',id);
+  LV=LV.filter(l=>l.id!==id);hideLd();rAbs();rDash();
+}
+
+// ── Cash advance
+function rCA(){
+  const sel=document.getElementById('ce');sel.innerHTML='';E.forEach(e=>sel.innerHTML+=`<option value="${e.id}">${en(e)}</option>`);
+  if(!document.getElementById('cd').value)document.getElementById('cd').value=new Date().toISOString().split('T')[0];
+  rCAT();
+}
+function rCAT(){
+  const tb=document.getElementById('cab');tb.innerHTML='';
+  const sorted=[...CA].sort((a,b)=>b.date.localeCompare(a.date));
+  document.getElementById('cae').style.display=sorted.length?'none':'block';
+  sorted.forEach(c=>{
+    const e=E.find(x=>x.id===c.emp_id);
+    const covPP=findPP(c.date);const ded=!!covPP;
+    const badge=ded?`<span class="bx xd">✓ Deducted</span>`:`<span class="bx xa">Pending</span>`;
+    const ppLbl=ded?`<span style="font-size:11px;color:#555">${covPP.start_date} – ${covPP.end_date}</span>`:`<span style="color:#ccc;font-size:11px">—</span>`;
+    tb.innerHTML+=`<tr><td><strong>${e?en(e):'—'}</strong></td><td>${c.date}</td><td><strong>${fc(c.amount)}</strong></td><td style="color:#888">${c.note||'—'}</td><td>${badge}</td><td>${ppLbl}</td><td><button class="bs bd" onclick="delCA(${c.id},'${c.date}')">×</button></td></tr>`;
+  });
+}
+async function addCA(){
+  const empId=document.getElementById('ce').value,date=document.getElementById('cd').value;
+  const amt=parseFloat(document.getElementById('ca2').value);const note=document.getElementById('cn').value;
+  if(!date||!amt||amt<=0){toast('Enter date and amount');return;}
+  setLd('Saving...');
+  const{data,error}=await db.from('cash_advances').insert({emp_id:empId,date,amount:amt,note}).select().single();
+  if(error){hideLd();toast('Error: '+error.message);return;}
+  CA.push(data);hideLd();
+  document.getElementById('ca2').value='';document.getElementById('cn').value='';
+  rCAT();rDash();toast(`${fc(amt)} logged`);
+}
+async function delCA(id,date){
+  if(findPP(date)&&!confirm('Already deducted. Delete anyway?'))return;
+  setLd('Deleting...');
+  await db.from('cash_advances').delete().eq('id',id);
+  CA=CA.filter(c=>c.id!==id);hideLd();rCAT();rDash();
+}
+
+// ── Pay periods
+function rPP(){rPPL();if(curPP){const p=PP.find(x=>x.id===curPP);if(p)openPP(p.id);}}
+function rPPL(){
+  const list=document.getElementById('pplist');list.innerHTML='';
+  if(!PP.length){list.innerHTML='<div style="font-size:11px;color:#999;padding:4px 0">No periods yet</div>';return;}
+  [...PP].sort((a,b)=>b.start_date.localeCompare(a.start_date)).forEach(p=>{
+    const btn=document.createElement('button');btn.className='pptab'+(curPP===p.id?' active':'');
+    btn.innerHTML=`<div style="font-weight:700;font-size:11px">${p.start_date} → ${p.end_date}</div><div style="font-size:10px;opacity:.7;margin-top:1px">${p.employee_count} emp · ${fc(p.total_net)}</div>`;
+    btn.onclick=()=>openPP(p.id);list.appendChild(btn);
+  });
+}
+async function createPP(){
+  const s=document.getElementById('pps').value,e=document.getElementById('ppe').value;
+  if(!s||!e||s>e){toast('Set valid dates');return;}
+  const total=E.reduce((sum,emp)=>sum+calc(emp,s,e).net,0);
+  setLd('Creating...');
+  const{data,error}=await db.from('pay_periods').insert({start_date:s,end_date:e,employee_count:E.length,total_net:total}).select().single();
+  if(error){hideLd();toast('Error: '+error.message);return;}
+  PP.unshift(data);hideLd();curPP=data.id;rPPL();openPP(data.id);rCAT();
+}
+async function deletePP(){
+  if(!confirm('Delete this pay period?'))return;
+  setLd('Deleting...');
+  await db.from('pay_periods').delete().eq('id',curPP);
+  PP=PP.filter(p=>p.id!==curPP);curPP=null;hideLd();rPPL();
+  document.getElementById('ppd').style.display='none';document.getElementById('ppempty').style.display='flex';rCAT();
+}
+function openPP(id){
+  const p=PP.find(x=>x.id===id);if(!p)return;curPP=id;
+  document.getElementById('ppd').style.display='block';document.getElementById('ppempty').style.display='none';
+  document.getElementById('pptitle').textContent=`${p.start_date} to ${p.end_date}`;
+  document.getElementById('ppsub').textContent=`${new Date(p.created_at).toLocaleDateString()} · ${p.employee_count} employees`;
+  rPPL();rPPPay(p);rPPSlips(p);
+}
+function rPPPay(p){
+  const tb=document.getElementById('ppb'),tf=document.getElementById('ppf');tb.innerHTML='';tf.innerHTML='';
+  let tn=0,tb2=0,tdm=0,tmisc=0,tl=0,ta=0,tc=0,tot=0;
+  E.forEach(e=>{
+    const r=calc(e,p.start_date,p.end_date);tn+=r.net;tb2+=r.basic;tdm+=r.pd.dmTotal;tmisc+=r.pd.misc;tl+=r.latePen;ta+=r.absPen;tc+=r.caAmt;tot+=r.otBonus;
+    tb.innerHTML+=`<tr><td><strong>${en(e)}</strong></td><td>${r.present}</td><td>${fk(r.basic)}</td>
+      <td>${r.pd.dmTotal>0?`<span class="bx xp">${fk(r.pd.dmTotal)}</span>`:'—'}</td>
+      <td>${r.pd.misc>0?fk(r.pd.misc):'—'}</td>
+      <td>${r.totalOT>0?`<span class="bx xb">${fc(r.otBonus)}</span>`:'—'}</td>
+      <td style="color:#dc2626">${Math.round(r.lateMins)>0?fk(r.latePen):'—'}</td>
+      <td style="color:#dc2626">${r.absent>0?fk(r.absPen):'—'}</td>
+      <td style="color:#dc2626">${r.caAmt>0?fk(r.caAmt):'—'}</td>
+      <td style="color:#dc2626">${r.govDed>0?fk(r.govDed):'—'}</td>
+      <td><strong>${fc(r.net)}</strong></td></tr>`;
+  });
+  tf.innerHTML=`<tr style="font-weight:700;border-top:2px solid #eee;background:#fafafa"><td>Total</td><td></td><td>${fk(tb2)}</td><td>${fk(tdm)}</td><td>${fk(tmisc)}</td><td>${fc(tot)}</td><td style="color:#dc2626">${fk(tl)}</td><td style="color:#dc2626">${fk(ta)}</td><td style="color:#dc2626">${fk(tc)}</td><td></td><td>${fc(tn)}</td></tr>`;
+  document.getElementById('ppc').innerHTML=`
+    <div class="card"><div class="cl">Employees</div><div class="cv">${E.length}</div></div>
+    <div class="card"><div class="cl">De minimis</div><div class="cv p">${fk(tdm)}</div></div>
+    <div class="card"><div class="cl">OT bonus</div><div class="cv b">${fc(tot)}</div></div>
+    <div class="card"><div class="cl">Late ded.</div><div class="cv a">${fk(tl)}</div></div>
+    <div class="card"><div class="cl">Cash advances</div><div class="cv r">${fk(tc)}</div></div>
+    <div class="card"><div class="cl">Net payroll</div><div class="cv g">${fc(tn)}</div></div>`;
+}
+function rPPSlips(p){
+  const c=document.getElementById('ppslips');c.innerHTML='';
+  E.forEach(e=>{
+    const r=calc(e,p.start_date,p.end_date);const above=e.monthly>BASE;
+    const dmR=above?DMO.filter(k=>r.pd[k]>0).map(k=>`<div style="display:flex;justify-content:space-between;font-size:11px;padding:1px 0;color:#666"><span>${DML[k]}</span><span>${fc(r.pd[k])}</span></div>`).join(''):'';
+    c.innerHTML+=`<div style="background:#fff;border-radius:10px;border:1px solid #eee;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #f0f0f0">
+        <div><div style="font-size:14px;font-weight:700">${en(e)}</div><div style="font-size:10px;color:#888">${e.pos} · ${e.id} · ${e.status||'Full Time'}</div><div style="font-size:10px;color:#888">${p.start_date}–${p.end_date} · ${r.present}/${r.payDays} days</div></div>
+        <div style="text-align:right"><div style="font-size:10px;color:#888">Net pay</div><div style="font-size:17px;font-weight:700;color:#16a34a">${fc(r.net)}</div><div style="font-size:10px;color:#888">${e.bank||'—'}</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <div style="font-size:9px;font-weight:700;color:#999;margin-bottom:4px">EARNINGS</div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;padding:1px 0"><span>Basic</span><span>${fc(r.basic)}</span></div>
+          ${dmR}
+          ${above&&r.pd.dmTotal>0?`<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;padding:2px 0;border-top:1px solid #eee"><span>De minimis <span style="font-size:8px;background:#ede9fe;color:#5b21b6;padding:1px 3px;border-radius:4px">non-taxable</span></span><span>${fc(r.pd.dmTotal)}</span></div>`:''}
+          ${above&&r.pd.misc>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:1px 0"><span>Misc. bonus</span><span>${fc(r.pd.misc)}</span></div>`:''}
+          ${r.totalOT>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:1px 0;color:#2563eb"><span>OT (${Math.round(r.totalOT)}min×2×)</span><span>${fc(r.otBonus)}</span></div>`:''}
+          <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;padding:3px 0;border-top:2px solid #111;margin-top:2px"><span>Gross</span><span>${fc(r.gross)}</span></div>
+        </div>
+        <div>
+          <div style="font-size:9px;font-weight:700;color:#999;margin-bottom:4px">DEDUCTIONS</div>
+          ${r.caAmt>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:1px 0"><span>Cash advance</span><span>${fc(r.caAmt)}</span></div>`:''}
+          ${Math.round(r.lateMins)>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:1px 0"><span>Late penalty</span><span>${fc(r.latePen)}</span></div>`:''}
+          ${r.absent>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:1px 0"><span>Absent penalty</span><span>${fc(r.absPen)}</span></div>`:''}
+          ${nv(e.pagibig)>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:1px 0"><span>PAG-IBIG</span><span>${fc(nv(e.pagibig))}</span></div>`:''}
+          ${nv(e.sss)>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:1px 0"><span>SSS</span><span>${fc(nv(e.sss))}</span></div>`:''}
+          ${nv(e.philhealth)>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:1px 0"><span>PhilHealth</span><span>${fc(nv(e.philhealth))}</span></div>`:''}
+          ${r.totalDed===0?'<div style="font-size:11px;color:#999">No deductions</div>':''}
+          <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;padding:3px 0;border-top:2px solid #111;margin-top:2px"><span>Total deductions</span><span>${fc(r.totalDed)}</span></div>
+        </div>
+      </div>
+    </div>`;
+  });
+}
+function switchPPT(t){
+  document.querySelectorAll('#page-payperiod .st').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('#page-payperiod .st').forEach(b=>{if(b.getAttribute('onclick').includes("'"+t+"'"))b.classList.add('active');});
+  document.getElementById('ppt-payroll').style.display=t==='payroll'?'block':'none';
+  document.getElementById('ppt-payslips').style.display=t==='payslips'?'block':'none';
+}
+
+// ── Export CSV (real download, leading zeros preserved)
+function exportCSV(){
+  const p=PP.find(x=>x.id===curPP);if(!p)return;
+  const hdr=[qv('Employee ID'),qv('Name'),qv('Position'),qv('Monthly Rate'),qv('Days Present'),qv('Days Absent'),qv('Basic Earned'),qv('De Minimis'),qv('Misc Bonus'),qv('Att OT min'),qv('Manual OT min'),qv('Total OT min'),qv('OT Bonus'),qv('Late min'),qv('Late Penalty'),qv('Absent Penalty'),qv('Cash Advance'),qv('PAG-IBIG'),qv('SSS'),qv('PhilHealth'),qv('Gov Deductions'),qv('Gross'),qv('Total Deductions'),qv('Net Pay'),qv('Bank'),qv('Account Number')].join(',');
+  const rows=E.map(e=>{
+    const r=calc(e,p.start_date,p.end_date);
+    return[qv(e.id),qv(en(e)),qv(e.pos),nqv(e.monthly),nqv(r.present),nqv(r.absent),nqv(r.basic.toFixed(2)),nqv(r.pd.dmTotal.toFixed(2)),nqv(r.pd.misc.toFixed(2)),nqv(Math.round(r.attOT)),nqv(Math.round(r.manOT)),nqv(Math.round(r.totalOT)),nqv(r.otBonus.toFixed(2)),nqv(Math.round(r.lateMins)),nqv(r.latePen.toFixed(2)),nqv(r.absPen.toFixed(2)),nqv(r.caAmt.toFixed(2)),nqv(nv(e.pagibig).toFixed(2)),nqv(nv(e.sss).toFixed(2)),nqv(nv(e.philhealth).toFixed(2)),nqv(r.govDed.toFixed(2)),nqv(r.gross.toFixed(2)),nqv(r.totalDed.toFixed(2)),nqv(r.net.toFixed(2)),qv(e.bank||''),qv(e.acc||'')].join(',');
+  });
+  const content=[hdr,...rows].join('\n');
+  const blob=new Blob([content],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=`payroll_${p.start_date}_${p.end_date}.csv`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  toast('CSV downloaded!');
+}
+
+// ── Export PDF (real print window)
+function exportPDF(){
+  const p=PP.find(x=>x.id===curPP);if(!p)return;
+  const fp=v=>'&#x20B1;'+v.toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const pages=E.map((e,i)=>{
+    const r=calc(e,p.start_date,p.end_date);const above=e.monthly>BASE;
+    const dmR=above?DMO.filter(k=>r.pd[k]>0).map(k=>`<tr><td style="font-size:11px;color:#555;padding:2px 0">${DML[k]}</td><td style="text-align:right;font-size:11px;padding:2px 0">${fp(r.pd[k])}</td></tr>`).join(''):'';
+    return`<div style="page-break-after:${i<E.length-1?'always':'avoid'};padding:20px 24px;font-family:Arial,sans-serif;font-size:12px;color:#111">
+      <div style="text-align:center;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:12px"><div style="font-size:18px;font-weight:700">YOUR VA PARTNER</div><div style="font-size:9px;color:#666;letter-spacing:1.5px">PAYSLIP</div></div>
+      <table style="width:100%;margin-bottom:12px;font-size:11px;border-collapse:collapse">
+        <tr><td style="padding:2px 0"><b>Name:</b> ${en(e)}</td><td style="padding:2px 0"><b>Period:</b> ${p.start_date} to ${p.end_date}</td></tr>
+        <tr><td style="padding:2px 0"><b>Position:</b> ${e.pos}</td><td style="padding:2px 0"><b>ID:</b> ${e.id}</td></tr>
+        <tr><td style="padding:2px 0"><b>Status:</b> ${e.status||'Full Time'}</td><td style="padding:2px 0"><b>Days:</b> ${r.present}/${r.payDays}</td></tr>
+        <tr><td style="padding:2px 0"><b>Rate:</b> ${fp(e.monthly)}</td><td style="padding:2px 0"><b>Bank:</b> ${e.bank||'—'} · ${e.acc||'—'}</td></tr>
+      </table>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:12px">
+        <div style="padding-right:14px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:1px;color:#444;border-bottom:1.5px solid #111;padding-bottom:3px;margin-bottom:5px">EARNINGS</div>
+          <table style="width:100%;border-collapse:collapse;font-size:11px">
+            <tr><td style="padding:2px 0">Basic</td><td style="text-align:right">${fp(r.basic)}</td></tr>
+            ${dmR}
+            ${above&&r.pd.dmTotal>0?`<tr style="font-weight:700;border-top:1px solid #ddd"><td style="padding:3px 0">De minimis <span style="font-size:8px;background:#ede9fe;color:#5b21b6;padding:1px 3px;border-radius:4px">non-taxable</span></td><td style="text-align:right">${fp(r.pd.dmTotal)}</td></tr>`:''}
+            ${above&&r.pd.misc>0?`<tr><td style="padding:2px 0">Misc. bonus</td><td style="text-align:right">${fp(r.pd.misc)}</td></tr>`:''}
+            ${r.totalOT>0?`<tr><td style="padding:2px 0;color:#1d4ed8">OT ${Math.round(r.totalOT)}min×2×</td><td style="text-align:right;color:#1d4ed8">${fp(r.otBonus)}</td></tr>`:''}
+            <tr style="font-weight:700;border-top:1.5px solid #111"><td style="padding:4px 0 2px">Gross</td><td style="text-align:right">${fp(r.gross)}</td></tr>
+          </table>
+        </div>
+        <div style="padding-left:14px;border-left:1px solid #ddd">
+          <div style="font-size:9px;font-weight:700;letter-spacing:1px;color:#444;border-bottom:1.5px solid #111;padding-bottom:3px;margin-bottom:5px">DEDUCTIONS</div>
+          <table style="width:100%;border-collapse:collapse;font-size:11px">
+            ${r.caAmt>0?`<tr><td style="padding:2px 0">Cash advance</td><td style="text-align:right">${fp(r.caAmt)}</td></tr>`:''}
+            ${Math.round(r.lateMins)>0?`<tr><td style="padding:2px 0">Late (${Math.round(r.lateMins)}min)</td><td style="text-align:right">${fp(r.latePen)}</td></tr>`:''}
+            ${r.absent>0?`<tr><td style="padding:2px 0">Absent (${r.absent}d)</td><td style="text-align:right">${fp(r.absPen)}</td></tr>`:''}
+            ${nv(e.pagibig)>0?`<tr><td style="padding:2px 0">PAG-IBIG</td><td style="text-align:right">${fp(nv(e.pagibig))}</td></tr>`:''}
+            ${nv(e.sss)>0?`<tr><td style="padding:2px 0">SSS</td><td style="text-align:right">${fp(nv(e.sss))}</td></tr>`:''}
+            ${nv(e.philhealth)>0?`<tr><td style="padding:2px 0">PhilHealth</td><td style="text-align:right">${fp(nv(e.philhealth))}</td></tr>`:''}
+            ${r.totalDed===0?'<tr><td style="color:#999;padding:2px 0">None</td><td></td></tr>':''}
+            <tr style="font-weight:700;border-top:1.5px solid #111"><td style="padding:4px 0 2px">Total</td><td style="text-align:right">${fp(r.totalDed)}</td></tr>
+          </table>
+        </div>
+      </div>
+      <div style="background:#f0faf5;border:2px solid #16a34a;border-radius:7px;padding:11px 15px;display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <span style="font-size:13px;font-weight:700;color:#166534">NET PAY</span>
+        <span style="font-size:21px;font-weight:700;color:#16a34a">${fp(r.net)}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div style="border-top:1px solid #999;padding-top:4px;font-size:9px;color:#666;text-align:center">Employee signature &amp; date</div>
+        <div style="border-top:1px solid #999;padding-top:4px;font-size:9px;color:#666;text-align:center">Authorized by &amp; date</div>
+      </div>
+    </div>`;
+  }).join('');
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Payslips ${p.start_date}-${p.end_date}</title><style>*{box-sizing:border-box}body{margin:0;background:#fff}@media print{@page{size:A4;margin:10mm}}</style></head><body>${pages}<script>window.onload=function(){window.print()}<\/script></body></html>`;
+  const w=window.open('','_blank');
+  if(w){w.document.write(html);w.document.close();}
+  else{toast('Allow pop-ups in your browser for PDF export');}
+}
+
+// ── Employees
+function rEmps(){
+  const list=document.getElementById('emplist');list.innerHTML='';
+  E.forEach(e=>{const d=document.createElement('div');d.className='ec'+(editEId===e.id?' sel':'');
+    d.innerHTML=`<div class="av">${ini(e)}</div><div><div style="font-size:12px;font-weight:700">${en(e)}</div><div style="font-size:10px;color:#888">${fk(e.monthly)}/mo</div></div>`;
+    d.onclick=()=>editEmp(e.id);list.appendChild(d);});
+}
+function prevSal(){
+  const m=parseFloat(document.getElementById('erate').value)||0;
+  const box=document.getElementById('salbox');if(!m){box.style.display='none';return;}
+  box.style.display='block';const b=getSB(m);const ab=m>BASE;
+  document.getElementById('sbasic').textContent=fc(b.basic);
+  document.getElementById('sdm').style.display=ab?'block':'none';
+  if(ab)DMO.forEach(k=>document.getElementById('s'+k).textContent=fc(b[k]));
+  document.getElementById('smiscrow').style.display=ab&&b.misc>0?'flex':'none';
+  document.getElementById('smisc').textContent=fc(b.misc);
+  document.getElementById('stotal').textContent=fc(m);
+  document.getElementById('srates').innerHTML=`Hourly: <strong>${fc(hrR(m))}</strong> &nbsp;·&nbsp; OT (2×): <strong>${fc(hrR(m)*2)}</strong>`;
+}
+function editEmp(id){
+  editEId=id;const e=E.find(x=>x.id===id);if(!e)return;
+  document.getElementById('empeditor').style.display='block';
+  document.getElementById('emptitle').textContent=en(e);
+  document.getElementById('empdelbtn').style.display='inline-block';
+  ['fn','ln','id','pos','bank','acc'].forEach(f=>document.getElementById('e'+f).value=e[f]||'');
+  document.getElementById('ejoin').value=e.joined||'';document.getElementById('estat').value=e.status||'Full Time';document.getElementById('erate').value=e.monthly||0;
+  ['pag','sss','phil'].forEach(f=>document.getElementById('e'+f).value=nv(e[{pag:'pagibig',sss:'sss',phil:'philhealth'}[f]]));
+  document.getElementById('empres').innerHTML='';prevSal();rEmps();
+}
+function newEmp(){
+  editEId=null;document.getElementById('empeditor').style.display='block';document.getElementById('emptitle').textContent='New employee';document.getElementById('empdelbtn').style.display='none';
+  ['efn','eln','eid','epos','ebank','eacc'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ejoin').value='';document.getElementById('estat').value='Full Time';document.getElementById('erate').value='';
+  ['epag','esss','ephil'].forEach(id=>document.getElementById(id).value=0);
+  document.getElementById('salbox').style.display='none';document.getElementById('empres').innerHTML='';
+}
+async function saveEmp(){
+  const fn=document.getElementById('efn').value.trim(),ln=document.getElementById('eln').value.trim();
+  if(!fn||!ln){showER('Name required',true);return;}
+  const obj={id:document.getElementById('eid').value.trim()||String(Date.now()).slice(-4),fn,ln,pos:document.getElementById('epos').value,joined:document.getElementById('ejoin').value,status:document.getElementById('estat').value,monthly:parseFloat(document.getElementById('erate').value)||0,bank:document.getElementById('ebank').value,acc:document.getElementById('eacc').value,pagibig:parseFloat(document.getElementById('epag').value)||0,sss:parseFloat(document.getElementById('esss').value)||0,philhealth:parseFloat(document.getElementById('ephil').value)||0};
+  setLd('Saving...');
+  if(editEId){
+    const{error}=await db.from('employees').update(obj).eq('id',editEId);
+    if(error){hideLd();showER('Error: '+error.message,true);return;}
+    const idx=E.findIndex(e=>e.id===editEId);if(idx>=0)E[idx]=obj;
+  }else{
+    const{data,error}=await db.from('employees').insert(obj).select().single();
+    if(error){hideLd();showER('Error: '+error.message,true);return;}
+    E.push(data);
+  }
+  editEId=obj.id;hideLd();rEmps();rDash();showER('Saved!',false);
+}
+async function deleteEmp(){
+  if(!editEId||!confirm('Delete employee and all their records?'))return;
+  setLd('Deleting...');
+  await db.from('employees').delete().eq('id',editEId);
+  E=E.filter(e=>e.id!==editEId);ATT=ATT.filter(r=>r.emp_id!==editEId);OT=OT.filter(o=>o.emp_id!==editEId);LV=LV.filter(l=>l.emp_id!==editEId);CA=CA.filter(c=>c.emp_id!==editEId);
+  editEId=null;document.getElementById('empeditor').style.display='none';hideLd();rEmps();rDash();
+}
+function cancelEmp(){document.getElementById('empeditor').style.display='none';editEId=null;rEmps();}
+function showER(m,e){const el=document.getElementById('empres');el.className='res '+(e?'err':'ok');el.textContent=m;el.style.marginTop='8px';}
+
+// ── Bulk import
+function rImp(){document.getElementById('etpl').value=ETPL;document.getElementById('atpl').value=ATPL;}
+function cpTpl(ta,lb){const el=document.getElementById(ta);el.select();navigator.clipboard?.writeText(el.value).catch(()=>document.execCommand('copy'));const l=document.getElementById(lb);l.style.display='inline';setTimeout(()=>l.style.display='none',2000);}
+function switchIT(t){document.querySelectorAll('#page-import .st').forEach(b=>b.classList.remove('active'));document.querySelectorAll('#page-import .st').forEach(b=>{if(b.getAttribute('onclick').includes("'"+t+"'"))b.classList.add('active');});document.getElementById('it-emp').style.display=t==='emp'?'block':'none';document.getElementById('it-att').style.display=t==='att'?'block':'none';}
+function pCSV(t){const ln=t.trim().split('\n').filter(l=>l.trim());const hd=ln[0].split(',').map(h=>h.trim().toLowerCase());return ln.slice(1).map(l=>{const v=l.split(',').map(x=>x.trim());const o={};hd.forEach((h,i)=>o[h]=v[i]||'');return o;});}
+function dov(e,id){e.preventDefault();document.getElementById(id).classList.add('ov');}
+function dlv(id){document.getElementById(id).classList.remove('ov');}
+function ddp(e,t){e.preventDefault();document.getElementById(t==='emp'?'edz':'adz').classList.remove('ov');const f=e.dataTransfer.files[0];if(f)t==='emp'?procEF(f):procAF(f);}
+function hEmpF(e){const f=e.target.files[0];if(f)procEF(f);}
+function hAttF(e){const f=e.target.files[0];if(f)procAF(f);}
+function procEF(file){const r=new FileReader();r.onload=ev=>{try{const rows=pCSV(ev.target.result);pendE=rows;const tb=document.getElementById('eptb');tb.innerHTML='';let err=0;rows.forEach(r=>{const ex=E.find(e=>e.id===r.id);const ok=r.first_name&&r.last_name&&r.monthly_rate;if(!ok)err++;const m=parseFloat(r.monthly_rate)||0;const b=getSB(m);const ab=m>BASE;tb.innerHTML+=`<tr><td>${r.id||'—'}</td><td>${r.first_name||'—'} ${r.last_name||'—'}</td><td>${r.position||'—'}</td><td>${m?fk(m):'—'}</td><td>${fk(b.basic)}</td><td>${ab?`<span class="bx xp">${fk(b.dmTotal)}</span>`:'—'}</td><td>${ab&&b.misc>0?fk(b.misc):'—'}</td><td>${ok?(ex?'<span class="bx xa">Update</span>':'<span class="bx xg">New</span>'):'<span class="bx xr">Missing</span>'}</td></tr>`;});document.getElementById('epct').textContent=`${rows.length} rows · ${err} errors`;document.getElementById('eprev').style.display='block';showR('eir',`Parsed ${rows.length} rows.`,err>0);}catch(e){showR('eir','Parse error: '+e.message,true);}};r.readAsText(file);}
+function procAF(file){const r=new FileReader();r.onload=ev=>{try{const rows=pCSV(ev.target.result);pendA=rows;const tb=document.getElementById('aptb');tb.innerHTML='';let err=0;rows.forEach(r=>{const emp=E.find(e=>e.id===r.employee_id);const isAbs=!r.time_in&&!r.time_out;let late='—',ot2='—',st='';if(isAbs)st='<span class="bx xr">Absent</span>';else if(r.time_in&&r.time_out){const{lateMins,otMins}=aOT(r.time_in,r.time_out);late=lateMins>0?Math.round(lateMins)+'m':'—';ot2=otMins>0?Math.round(otMins)+'m':'—';st='<span class="bx xg">Present</span>';}else{st='<span class="bx xr">Missing</span>';err++;}if(!emp)err++;tb.innerHTML+=`<tr><td>${r.employee_id||'—'}</td><td>${emp?en(emp):'<span class="bx xr">?</span>'}</td><td>${r.date||'—'}</td><td>${r.time_in||'—'}</td><td>${r.time_out||'—'}</td><td>${late}</td><td>${ot2}</td><td>${st}</td></tr>`;});document.getElementById('apct').textContent=`${rows.length} rows · ${err} errors`;document.getElementById('aprev').style.display='block';showR('air',`Parsed ${rows.length} rows.`,err>0);}catch(e){showR('air','Parse error: '+e.message,true);}};r.readAsText(file);}
+async function confEmpI(){
+  setLd('Importing...');let a=0,u=0;
+  for(const r of pendE){
+    if(!r.first_name||!r.last_name)continue;
+    const obj={id:r.id||String(Date.now()).slice(-4),fn:r.first_name,ln:r.last_name,pos:r.position||'',monthly:parseFloat(r.monthly_rate)||0,joined:r.date_of_joining||'',bank:r.bank||'',acc:r.account_number||'',status:'Full Time',pagibig:parseFloat(r.pagibig)||0,sss:parseFloat(r.sss)||0,philhealth:parseFloat(r.philhealth)||0};
+    const ex=E.find(e=>e.id===obj.id);
+    if(ex){await db.from('employees').update(obj).eq('id',obj.id);const idx=E.findIndex(e=>e.id===obj.id);E[idx]=obj;u++;}
+    else{const{data}=await db.from('employees').insert(obj).select().single();if(data){E.push(data);a++;}}
+  }
+  hideLd();showR('eir',`Added ${a}, updated ${u}.`,false);document.getElementById('eprev').style.display='none';pendE=[];rDash();
+}
+function canEmpI(){document.getElementById('eprev').style.display='none';pendE=[];}
+async function confAttI(){
+  setLd('Importing...');let imp=0,sk=0;
+  for(const r of pendA){
+    const emp=E.find(e=>e.id===r.employee_id);if(!emp||!r.date){sk++;continue;}
+    const isAbs=!r.time_in&&!r.time_out;let rec;
+    if(isAbs)rec={emp_id:emp.id,type:'absent',date:r.date,hours:0,late_mins:0,ot_mins:0};
+    else if(r.time_in&&r.time_out){const{lateMins,otMins,hours}=aOT(r.time_in,r.time_out);rec={emp_id:emp.id,type:'work',date:r.date,time_in:r.time_in,time_out:r.time_out,hours,late_mins:lateMins,ot_mins:otMins};}
+    else{sk++;continue;}
+    const existing=ATT.find(a=>a.emp_id===emp.id&&a.date===r.date);
+    if(existing){await db.from('attendance').update(rec).eq('id',existing.id);const idx=ATT.findIndex(a=>a.id===existing.id);ATT[idx]={...existing,...rec};}
+    else{const{data}=await db.from('attendance').insert(rec).select().single();if(data)ATT.push(data);}
+    imp++;
+  }
+  hideLd();showR('air',`Imported ${imp}, skipped ${sk}.`,sk>0);document.getElementById('aprev').style.display='none';pendA=[];rDash();
+}
+function canAttI(){document.getElementById('aprev').style.display='none';pendA=[];}
+function showR(id,m,e){const el=document.getElementById(id);el.className='res '+(e?'err':'ok');el.textContent=m;}
+
+// ── Purge
+async function rPurge(){
+  document.getElementById('purgst').innerHTML=`
+    <div class="ds"><span>Employees</span><strong>${E.length}</strong></div>
+    <div class="ds"><span>Attendance</span><strong>${ATT.length}</strong></div>
+    <div class="ds"><span>Overtime</span><strong>${OT.length}</strong></div>
+    <div class="ds"><span>Leaves</span><strong>${LV.length}</strong></div>
+    <div class="ds"><span>Cash advances</span><strong>${CA.length}</strong></div>
+    <div class="ds"><span>Pay periods</span><strong>${PP.length}</strong></div>`;
+  document.getElementById('purgin').value='';const btn=document.getElementById('purgbtn');btn.disabled=true;btn.style.opacity='.4';btn.style.cursor='not-allowed';document.getElementById('purgres').innerHTML='';
+}
+function chkPurge(){const ok=document.getElementById('purgin').value==='DELETE ALL';const btn=document.getElementById('purgbtn');btn.disabled=!ok;btn.style.opacity=ok?'1':'.4';btn.style.cursor=ok?'pointer':'not-allowed';}
+async function purge1(t){
+  if(!confirm('Clear? Cannot undo.'))return;
+  setLd('Clearing...');
+  const map={att:'attendance',ot:'overtime_records',lv:'leaves',ca:'cash_advances',pp:'pay_periods',emp:'employees'};
+  await db.from(map[t]).delete().gte('id',0).catch(()=>db.from(map[t]).delete().neq('id',''));
+  if(t==='att')ATT=[];else if(t==='ot')OT=[];else if(t==='lv')LV=[];else if(t==='ca')CA=[];else if(t==='pp'){PP=[];curPP=null;document.getElementById('ppd').style.display='none';document.getElementById('ppempty').style.display='flex';}else if(t==='emp'){E=[];ATT=[];OT=[];LV=[];CA=[];}
+  hideLd();rPurge();rDash();rCAT();toast('Cleared');
+}
+async function purgeAll(){
+  setLd('Purging...');
+  await Promise.all(['attendance','overtime_records','leaves','cash_advances','pay_periods'].map(t=>db.from(t).delete().gte('id',0)));
+  await db.from('employees').delete().neq('id','');
+  E=[];ATT=[];OT=[];LV=[];CA=[];PP=[];curPP=null;
+  document.getElementById('ppd').style.display='none';document.getElementById('ppempty').style.display='flex';
+  hideLd();rPurge();rDash();rCAT();
+  const el=document.getElementById('purgres');el.className='res ok';el.textContent='All data deleted.';el.style.marginTop='8px';
+}
+
+// ── Init
+async function init(){
+  await loadAll();
+  document.getElementById('app').style.display='flex';
+  rDash();
+}
+init();
+</script>
+</body>
+</html>
