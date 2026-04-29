@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -388,14 +387,18 @@ function aOT(i,o){
 
 // ── Payroll calc
 function calc(e,sd,ed){
-  const ar=ATT.filter(r=>r.emp_id===e.id);
+  // Filter attendance to only records within the pay period date range
+  const ar=ATT.filter(r=>r.emp_id===e.id&&(!sd||r.date>=sd)&&(!ed||r.date<=ed));
   const work=ar.filter(r=>r.type==='work');
   const present=work.length;
   const lateMins=work.reduce((s,r)=>s+(r.late_mins||0),0);
   const attOT=work.reduce((s,r)=>s+(r.ot_mins||0),0);
   const manOT=OT.filter(o=>o.emp_id===e.id&&(!sd||o.date>=sd)&&(!ed||o.date<=ed)).reduce((s,o)=>s+(o.hours||0)*60+(o.minutes||0),0);
   const totalOT=attOT+manOT;
-  const absent=Math.max(0,ar.filter(r=>r.type==='absent').length-LV.filter(l=>l.emp_id===e.id&&l.with_pay).length);
+  // Filter absent records and paid leaves to the pay period date range
+  const absRecs=ar.filter(r=>r.type==='absent');
+  const paidLvInPeriod=LV.filter(l=>l.emp_id===e.id&&l.with_pay&&(!sd||l.date>=sd)&&(!ed||l.date<=ed)).length;
+  const absent=Math.max(0,absRecs.length-paidLvInPeriod);
   const payDays=present+absent;
   const pd=getPD(e.monthly);
   const db=payDays>0?pd.basic/payDays:0;
@@ -425,6 +428,16 @@ function qv(v){
 }
 function nqv(v){return String(v==null?'':v);}
 
+// ── Sanitize Supabase row into plain JS object (prevents DataCloneError)
+function plain(row){
+  if(!row)return null;
+  try{return JSON.parse(JSON.stringify(row));}catch(e){return row;}
+}
+function plainArr(arr){
+  if(!arr)return[];
+  try{return JSON.parse(JSON.stringify(arr));}catch(e){return arr;}
+}
+
 // ── Load all data
 async function loadAll(){
   setLd('Loading data...');
@@ -437,7 +450,7 @@ async function loadAll(){
       db.from('cash_advances').select('*').order('date'),
       db.from('pay_periods').select('*').order('created_at',{ascending:false})
     ]);
-    E=r1.data||[];ATT=r2.data||[];OT=r3.data||[];LV=r4.data||[];CA=r5.data||[];PP=r6.data||[];
+    E=plainArr(r1.data);ATT=plainArr(r2.data);OT=plainArr(r3.data);LV=plainArr(r4.data);CA=plainArr(r5.data);PP=plainArr(r6.data);
   }catch(e){toast('DB error: '+e.message);}
   hideLd();
 }
@@ -495,11 +508,11 @@ async function logAtt(){
   if(existing){
     const{error}=await db.from('attendance').update({type:'work',time_in:i,time_out:o,hours,late_mins:lateMins,ot_mins:otMins}).eq('id',existing.id);
     if(error){hideLd();toast('Error: '+error.message);return;}
-    const idx=ATT.findIndex(r=>r.id===existing.id);ATT[idx]={...existing,type:'work',time_in:i,time_out:o,hours,late_mins:lateMins,ot_mins:otMins};
+    const idx=ATT.findIndex(r=>r.id===existing.id);ATT[idx]=plain({...existing,type:'work',time_in:i,time_out:o,hours,late_mins:lateMins,ot_mins:otMins});
   }else{
     const{data,error}=await db.from('attendance').insert({emp_id:empId,type:'work',date,time_in:i,time_out:o,hours,late_mins:lateMins,ot_mins:otMins}).select().single();
     if(error){hideLd();toast('Error: '+error.message);return;}
-    ATT.push(data);
+    ATT.push(plain(data));
   }
   hideLd();rAttT(empId);rDash();toast(`Saved! Late:${Math.round(lateMins)}m OT:${Math.round(otMins)}m`);
 }
@@ -510,10 +523,10 @@ async function markAbsent(){
   const existing=ATT.find(r=>r.emp_id===empId&&r.date===date);
   if(existing){
     await db.from('attendance').update({type:'absent',time_in:null,time_out:null,hours:0,late_mins:0,ot_mins:0}).eq('id',existing.id);
-    const idx=ATT.findIndex(r=>r.id===existing.id);ATT[idx]={...existing,type:'absent',time_in:null,time_out:null,hours:0,late_mins:0,ot_mins:0};
+    const idx=ATT.findIndex(r=>r.id===existing.id);ATT[idx]=plain({...existing,type:'absent',time_in:null,time_out:null,hours:0,late_mins:0,ot_mins:0});
   }else{
     const{data}=await db.from('attendance').insert({emp_id:empId,type:'absent',date,hours:0,late_mins:0,ot_mins:0}).select().single();
-    if(data)ATT.push(data);
+    if(data)ATT.push(plain(data));
   }
   hideLd();rAttT(empId);rAbs();toast('Marked absent');
 }
@@ -548,7 +561,7 @@ async function addOT(){
   setLd('Saving...');
   const{data,error}=await db.from('overtime_records').insert({emp_id:empId,date,hours:h,minutes:m,note,source:'manual'}).select().single();
   if(error){hideLd();toast('Error: '+error.message);return;}
-  OT.push(data);hideLd();
+  OT.push(plain(data));hideLd();
   document.getElementById('oh').value=0;document.getElementById('om2').value=0;document.getElementById('on2').value='';document.getElementById('otp').style.display='none';
   rOTT();rDash();
   const e=E.find(x=>x.id===empId);toast(`OT added! ${h}h ${m}min = ${fc((h*60+m)*otR(e?.monthly||0))}`);
@@ -603,10 +616,10 @@ async function saveLv(empId,date){
   const existing=LV.find(l=>l.emp_id===empId&&l.date===date);
   if(existing){
     await db.from('leaves').update({type:p.type,with_pay:p.withPay}).eq('id',existing.id);
-    const idx=LV.findIndex(l=>l.id===existing.id);LV[idx]={...existing,type:p.type,with_pay:p.withPay};
+    const idx=LV.findIndex(l=>l.id===existing.id);LV[idx]=plain({...existing,type:p.type,with_pay:p.withPay});
   }else{
     const{data}=await db.from('leaves').insert({emp_id:empId,date,type:p.type,with_pay:p.withPay}).select().single();
-    if(data)LV.push(data);
+    if(data)LV.push(plain(data));
   }
   hideLd();rAbs();rDash();toast('Leave saved');
 }
@@ -641,7 +654,7 @@ async function addCA(){
   setLd('Saving...');
   const{data,error}=await db.from('cash_advances').insert({emp_id:empId,date,amount:amt,note}).select().single();
   if(error){hideLd();toast('Error: '+error.message);return;}
-  CA.push(data);hideLd();
+  CA.push(plain(data));hideLd();
   document.getElementById('ca2').value='';document.getElementById('cn').value='';
   rCAT();rDash();toast(`${fc(amt)} logged`);
 }
@@ -670,7 +683,7 @@ async function createPP(){
   setLd('Creating...');
   const{data,error}=await db.from('pay_periods').insert({start_date:s,end_date:e,employee_count:E.length,total_net:total}).select().single();
   if(error){hideLd();toast('Error: '+error.message);return;}
-  PP.unshift(data);hideLd();curPP=data.id;rPPL();openPP(data.id);rCAT();
+  const pp=plain(data);PP.unshift(pp);hideLd();curPP=pp.id;rPPL();openPP(pp.id);rCAT();
 }
 async function deletePP(){
   if(!confirm('Delete this pay period?'))return;
@@ -875,7 +888,7 @@ async function saveEmp(){
   }else{
     const{data,error}=await db.from('employees').insert(obj).select().single();
     if(error){hideLd();showER('Error: '+error.message,true);return;}
-    E.push(data);
+    E.push(plain(data));
   }
   editEId=obj.id;hideLd();rEmps();rDash();showER('Saved!',false);
 }
@@ -916,7 +929,7 @@ async function confEmpI(){
     const obj={id:r.id||String(Date.now()).slice(-4),fn:r.first_name,ln:r.last_name,pos:r.position||'',monthly:parseFloat(r.monthly_rate)||0,joined:r.date_of_joining||'',bank:r.bank||'',acc:r.account_number||'',status:'Full Time',pagibig:parseFloat(r.pagibig)||0,sss:parseFloat(r.sss)||0,philhealth:parseFloat(r.philhealth)||0};
     const ex=E.find(e=>e.id===obj.id);
     if(ex){await db.from('employees').update(obj).eq('id',obj.id);const idx=E.findIndex(e=>e.id===obj.id);E[idx]=obj;u++;}
-    else{const{data}=await db.from('employees').insert(obj).select().single();if(data){E.push(data);a++;}}
+    else{const{data}=await db.from('employees').insert(obj).select().single();if(data){E.push(plain(data));a++;}}
   }
   hideLd();showR('eir',`Added ${a}, updated ${u}.`,false);document.getElementById('eprev').style.display='none';pendE=[];rDash();
 }
@@ -930,8 +943,8 @@ async function confAttI(){
     else if(r.time_in&&r.time_out){const{lateMins,otMins,hours}=aOT(r.time_in,r.time_out);rec={emp_id:emp.id,type:'work',date:r.date,time_in:r.time_in,time_out:r.time_out,hours,late_mins:lateMins,ot_mins:otMins};}
     else{sk++;continue;}
     const existing=ATT.find(a=>a.emp_id===emp.id&&a.date===r.date);
-    if(existing){await db.from('attendance').update(rec).eq('id',existing.id);const idx=ATT.findIndex(a=>a.id===existing.id);ATT[idx]={...existing,...rec};}
-    else{const{data}=await db.from('attendance').insert(rec).select().single();if(data)ATT.push(data);}
+    if(existing){await db.from('attendance').update(rec).eq('id',existing.id);const idx=ATT.findIndex(a=>a.id===existing.id);ATT[idx]=plain({...existing,...rec});}
+    else{const{data}=await db.from('attendance').insert(rec).select().single();if(data)ATT.push(plain(data));}
     imp++;
   }
   hideLd();showR('air',`Imported ${imp}, skipped ${sk}.`,sk>0);document.getElementById('aprev').style.display='none';pendA=[];rDash();
