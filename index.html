@@ -437,20 +437,22 @@ function plainArr(arr){
   if(!arr)return[];
   try{return JSON.parse(JSON.stringify(arr));}catch(e){return arr;}
 }
+function sortE(){E.sort((a,b)=>String(a.id).localeCompare(String(b.id),undefined,{numeric:true}));}
+
 
 // ── Load all data
 async function loadAll(){
   setLd('Loading data...');
   try{
     const [r1,r2,r3,r4,r5,r6]=await Promise.all([
-      db.from('employees').select('*').order('fn'),
+      db.from('employees').select('*').order('id'),
       db.from('attendance').select('*').order('date'),
       db.from('overtime_records').select('*').order('date'),
       db.from('leaves').select('*').order('date'),
       db.from('cash_advances').select('*').order('date'),
       db.from('pay_periods').select('*').order('created_at',{ascending:false})
     ]);
-    E=plainArr(r1.data);ATT=plainArr(r2.data);OT=plainArr(r3.data);LV=plainArr(r4.data);CA=plainArr(r5.data);PP=plainArr(r6.data);
+    E=plainArr(r1.data).sort((a,b)=>String(a.id).localeCompare(String(b.id),undefined,{numeric:true}));ATT=plainArr(r2.data);OT=plainArr(r3.data);LV=plainArr(r4.data);CA=plainArr(r5.data);PP=plainArr(r6.data);
   }catch(e){toast('DB error: '+e.message);}
   hideLd();
 }
@@ -890,7 +892,7 @@ async function saveEmp(){
     if(error){hideLd();showER('Error: '+error.message,true);return;}
     E.push(plain(data));
   }
-  editEId=obj.id;hideLd();rEmps();rDash();showER('Saved!',false);
+  sortE();editEId=obj.id;hideLd();rEmps();rDash();showER('Saved!',false);
 }
 async function deleteEmp(){
   if(!editEId||!confirm('Delete employee and all their records?'))return;
@@ -931,7 +933,7 @@ async function confEmpI(){
     if(ex){await db.from('employees').update(obj).eq('id',obj.id);const idx=E.findIndex(e=>e.id===obj.id);E[idx]=obj;u++;}
     else{const{data}=await db.from('employees').insert(obj).select().single();if(data){E.push(plain(data));a++;}}
   }
-  hideLd();showR('eir',`Added ${a}, updated ${u}.`,false);document.getElementById('eprev').style.display='none';pendE=[];rDash();
+  sortE();hideLd();showR('eir',`Added ${a}, updated ${u}.`,false);document.getElementById('eprev').style.display='none';pendE=[];rDash();
 }
 function canEmpI(){document.getElementById('eprev').style.display='none';pendE=[];}
 async function confAttI(){
