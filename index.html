@@ -389,7 +389,9 @@ function aOT(i,o){
 function calc(e,sd,ed){
   // Filter attendance to only records within the pay period date range
   const ar=ATT.filter(r=>r.emp_id===e.id&&(!sd||r.date>=sd)&&(!ed||r.date<=ed));
-  const work=ar.filter(r=>r.type==='work');
+  // Build set of absent dates to exclude work records on those dates (handles duplicates)
+  const absentDates=new Set(ar.filter(r=>r.type==='absent').map(r=>r.date));
+  const work=ar.filter(r=>r.type==='work'&&!absentDates.has(r.date));
   const present=work.length;
   const lateMins=work.reduce((s,r)=>s+(r.late_mins||0),0);
   const attOT=work.reduce((s,r)=>s+(r.ot_mins||0),0);
@@ -522,14 +524,15 @@ async function markAbsent(){
   const empId=document.getElementById('ae').value,date=document.getElementById('ad').value;
   if(!date){toast('Select a date');return;}
   setLd('Saving...');
-  const existing=ATT.find(r=>r.emp_id===empId&&r.date===date);
-  if(existing){
-    await db.from('attendance').update({type:'absent',time_in:null,time_out:null,hours:0,late_mins:0,ot_mins:0}).eq('id',existing.id);
-    const idx=ATT.findIndex(r=>r.id===existing.id);ATT[idx]=plain({...existing,type:'absent',time_in:null,time_out:null,hours:0,late_mins:0,ot_mins:0});
-  }else{
-    const{data}=await db.from('attendance').insert({emp_id:empId,type:'absent',date,hours:0,late_mins:0,ot_mins:0}).select().single();
-    if(data)ATT.push(plain(data));
+  // Delete ALL existing records for this employee+date (prevents work+absent duplicates)
+  const existing=ATT.filter(r=>r.emp_id===empId&&r.date===date);
+  for(const rec of existing){
+    await db.from('attendance').delete().eq('id',rec.id);
   }
+  ATT=ATT.filter(r=>!(r.emp_id===empId&&r.date===date));
+  // Insert fresh absent record with zeroed late/OT
+  const{data}=await db.from('attendance').insert({emp_id:empId,type:'absent',date,hours:0,late_mins:0,ot_mins:0}).select().single();
+  if(data)ATT.push(plain(data));
   hideLd();rAttT(empId);rAbs();toast('Marked absent');
 }
 async function delAtt(id,empId){
@@ -923,7 +926,52 @@ function ddp(e,t){e.preventDefault();document.getElementById(t==='emp'?'edz':'ad
 function hEmpF(e){const f=e.target.files[0];if(f)procEF(f);}
 function hAttF(e){const f=e.target.files[0];if(f)procAF(f);}
 function procEF(file){const r=new FileReader();r.onload=ev=>{try{const rows=pCSV(ev.target.result);pendE=rows;const tb=document.getElementById('eptb');tb.innerHTML='';let err=0;rows.forEach(r=>{const ex=E.find(e=>e.id===r.id);const ok=r.first_name&&r.last_name&&r.monthly_rate;if(!ok)err++;const m=parseFloat(r.monthly_rate)||0;const b=getSB(m);const ab=m>BASE;tb.innerHTML+=`<tr><td>${r.id||'—'}</td><td>${r.first_name||'—'} ${r.last_name||'—'}</td><td>${r.position||'—'}</td><td>${m?fk(m):'—'}</td><td>${fk(b.basic)}</td><td>${ab?`<span class="bx xp">${fk(b.dmTotal)}</span>`:'—'}</td><td>${ab&&b.misc>0?fk(b.misc):'—'}</td><td>${ok?(ex?'<span class="bx xa">Update</span>':'<span class="bx xg">New</span>'):'<span class="bx xr">Missing</span>'}</td></tr>`;});document.getElementById('epct').textContent=`${rows.length} rows · ${err} errors`;document.getElementById('eprev').style.display='block';showR('eir',`Parsed ${rows.length} rows.`,err>0);}catch(e){showR('eir','Parse error: '+e.message,true);}};r.readAsText(file);}
-function procAF(file){const r=new FileReader();r.onload=ev=>{try{const rows=pCSV(ev.target.result);pendA=rows;const tb=document.getElementById('aptb');tb.innerHTML='';let err=0;rows.forEach(r=>{const emp=E.find(e=>e.id===r.employee_id);const isAbs=!r.time_in&&!r.time_out;let late='—',ot2='—',st='';if(isAbs)st='<span class="bx xr">Absent</span>';else if(r.time_in&&r.time_out){const{lateMins,otMins}=aOT(r.time_in,r.time_out);late=lateMins>0?Math.round(lateMins)+'m':'—';ot2=otMins>0?Math.round(otMins)+'m':'—';st='<span class="bx xg">Present</span>';}else{st='<span class="bx xr">Missing</span>';err++;}if(!emp)err++;tb.innerHTML+=`<tr><td>${r.employee_id||'—'}</td><td>${emp?en(emp):'<span class="bx xr">?</span>'}</td><td>${r.date||'—'}</td><td>${r.time_in||'—'}</td><td>${r.time_out||'—'}</td><td>${late}</td><td>${ot2}</td><td>${st}</td></tr>`;});document.getElementById('apct').textContent=`${rows.length} rows · ${err} errors`;document.getElementById('aprev').style.display='block';showR('air',`Parsed ${rows.length} rows.`,err>0);}catch(e){showR('air','Parse error: '+e.message,true);}};r.readAsText(file);}
+function procAF(file){const r=new FileReader();r.onload=ev=>{try{
+  const rows=pCSV(ev.target.result);
+
+  // ── AUTO-FILL ABSENCES ──────────────────────────────────────────────
+  // Get all unique dates in the CSV
+  const allDates=[...new Set(rows.map(r=>r.date).filter(Boolean))].sort();
+  // Get all employee IDs that appear anywhere in the CSV
+  const allEmpIds=[...new Set(rows.map(r=>r.employee_id).filter(Boolean))];
+  // For each date+employee combo that has NO record, auto-insert an absent row
+  const autoAbsent=[];
+  allDates.forEach(date=>{
+    allEmpIds.forEach(empId=>{
+      const hasRecord=rows.find(r=>r.employee_id===empId&&r.date===date);
+      if(!hasRecord){
+        // Only auto-absent if this employee exists in the system
+        const emp=E.find(e=>e.id===empId);
+        if(emp)autoAbsent.push({employee_id:empId,date,time_in:'',time_out:'',_auto:true});
+      }
+    });
+  });
+  // Merge: original rows first, then auto-absent rows
+  const allRows=[...rows,...autoAbsent].sort((a,b)=>a.date.localeCompare(b.date)||a.employee_id.localeCompare(b.employee_id));
+  pendA=allRows;
+  // ────────────────────────────────────────────────────────────────────
+
+  const tb=document.getElementById('aptb');tb.innerHTML='';let err=0;
+  allRows.forEach(r=>{
+    const emp=E.find(e=>e.id===r.employee_id);
+    const isAbs=!r.time_in&&!r.time_out;
+    let late='—',ot2='—',st='';
+    if(isAbs){st=r._auto?'<span class="bx xa">Auto-absent</span>':'<span class="bx xr">Absent</span>';}
+    else if(r.time_in&&r.time_out){
+      const{lateMins,otMins}=aOT(r.time_in,r.time_out);
+      // Warn about same time_in == time_out (zero hours — likely should be absent)
+      const zeroHrs=r.time_in.substring(0,5)===r.time_out.substring(0,5);
+      if(zeroHrs){st='<span class="bx xa">⚠ Zero hrs</span>';err++;}
+      else{late=lateMins>0?Math.round(lateMins)+'m':'—';ot2=otMins>0?Math.round(otMins)+'m':'—';st='<span class="bx xg">Present</span>';}
+    }else{st='<span class="bx xr">Missing data</span>';err++;}
+    if(!emp)err++;
+    tb.innerHTML+=`<tr style="${r._auto?'opacity:.6':''}"><td>${r.employee_id||'—'}</td><td>${emp?en(emp):'<span class="bx xr">?</span>'}</td><td>${r.date||'—'}</td><td>${r.time_in||'—'}</td><td>${r.time_out||'—'}</td><td>${late}</td><td>${ot2}</td><td>${st}</td></tr>`;
+  });
+  const autoCount=autoAbsent.length;
+  document.getElementById('apct').textContent=`${rows.length} rows + ${autoCount} auto-absent · ${err} warnings`;
+  document.getElementById('aprev').style.display='block';
+  showR('air',autoCount>0?`Parsed ${rows.length} rows. Auto-added ${autoCount} absent record(s) for missing dates.`:`Parsed ${rows.length} rows.`,err>0);
+}catch(e){showR('air','Parse error: '+e.message,true);}};r.readAsText(file);}
 async function confEmpI(){
   setLd('Importing...');let a=0,u=0;
   for(const r of pendE){
@@ -940,8 +988,11 @@ async function confAttI(){
   setLd('Importing...');let imp=0,sk=0;
   for(const r of pendA){
     const emp=E.find(e=>e.id===r.employee_id);if(!emp||!r.date){sk++;continue;}
-    const isAbs=!r.time_in&&!r.time_out;let rec;
-    if(isAbs)rec={emp_id:emp.id,type:'absent',date:r.date,hours:0,late_mins:0,ot_mins:0};
+    const isAbs=!r.time_in&&!r.time_out;
+    // Also treat same time_in == time_out (zero hours) as absent
+    const zeroHrs=r.time_in&&r.time_out&&r.time_in.substring(0,5)===r.time_out.substring(0,5);
+    let rec;
+    if(isAbs||zeroHrs)rec={emp_id:emp.id,type:'absent',date:r.date,hours:0,late_mins:0,ot_mins:0};
     else if(r.time_in&&r.time_out){const{lateMins,otMins,hours}=aOT(r.time_in,r.time_out);rec={emp_id:emp.id,type:'work',date:r.date,time_in:r.time_in,time_out:r.time_out,hours,late_mins:lateMins,ot_mins:otMins};}
     else{sk++;continue;}
     const existing=ATT.find(a=>a.emp_id===emp.id&&a.date===r.date);
