@@ -956,13 +956,15 @@ function procAF(file){const r=new FileReader();r.onload=ev=>{try{
     const emp=E.find(e=>e.id===r.employee_id);
     const isAbs=!r.time_in&&!r.time_out;
     let late='—',ot2='—',st='';
-    if(isAbs){st=r._auto?'<span class="bx xa">Auto-absent</span>':'<span class="bx xr">Absent</span>';}
+    const _ti=(r.time_in||'').trim().toUpperCase();
+    const _to=(r.time_out||'').trim().toUpperCase();
+    const _isLeave=_ti==='LEAVE'||_to==='LEAVE';
+    if(_isLeave){st='<span class="bx xa" style="background:#fef3c7;color:#92400e">Leave (paid)</span>';}
+    else if(isAbs){st=r._auto?'<span class="bx xa">Auto-absent</span>':'<span class="bx xr">Absent</span>';}
     else if(r.time_in&&r.time_out){
-      const{lateMins,otMins}=aOT(r.time_in,r.time_out);
-      // Warn about same time_in == time_out (zero hours — likely should be absent)
       const zeroHrs=r.time_in.substring(0,5)===r.time_out.substring(0,5);
-      if(zeroHrs){st='<span class="bx xa">⚠ Zero hrs</span>';err++;}
-      else{late=lateMins>0?Math.round(lateMins)+'m':'—';ot2=otMins>0?Math.round(otMins)+'m':'—';st='<span class="bx xg">Present</span>';}
+      if(zeroHrs){st='<span class="bx xa">⚠ Zero hrs → Absent</span>';err++;}
+      else{const{lateMins,otMins}=aOT(r.time_in,r.time_out);late=lateMins>0?Math.round(lateMins)+'m':'—';ot2=otMins>0?Math.round(otMins)+'m':'—';st='<span class="bx xg">Present</span>';}
     }else{st='<span class="bx xr">Missing data</span>';err++;}
     if(!emp)err++;
     tb.innerHTML+=`<tr style="${r._auto?'opacity:.6':''}"><td>${r.employee_id||'—'}</td><td>${emp?en(emp):'<span class="bx xr">?</span>'}</td><td>${r.date||'—'}</td><td>${r.time_in||'—'}</td><td>${r.time_out||'—'}</td><td>${late}</td><td>${ot2}</td><td>${st}</td></tr>`;
@@ -988,13 +990,21 @@ async function confAttI(){
   setLd('Importing...');let imp=0,sk=0;
   for(const r of pendA){
     const emp=E.find(e=>e.id===r.employee_id);if(!emp||!r.date){sk++;continue;}
+    const tiU=(r.time_in||'').trim().toUpperCase();
+    const toU=(r.time_out||'').trim().toUpperCase();
+    const isLeave=tiU==='LEAVE'||toU==='LEAVE';
     const isAbs=!r.time_in&&!r.time_out;
-    // Also treat same time_in == time_out (zero hours) as absent
-    const zeroHrs=r.time_in&&r.time_out&&r.time_in.substring(0,5)===r.time_out.substring(0,5);
+    const zeroHrs=!isLeave&&r.time_in&&r.time_out&&r.time_in.substring(0,5)===r.time_out.substring(0,5);
     let rec;
-    if(isAbs||zeroHrs)rec={emp_id:emp.id,type:'absent',date:r.date,hours:0,late_mins:0,ot_mins:0};
-    else if(r.time_in&&r.time_out){const{lateMins,otMins,hours}=aOT(r.time_in,r.time_out);rec={emp_id:emp.id,type:'work',date:r.date,time_in:r.time_in,time_out:r.time_out,hours,late_mins:lateMins,ot_mins:otMins};}
-    else{sk++;continue;}
+    if(isLeave){
+      // LEAVE = full paid day stored as standard shift 20:00-05:00 with no late/OT
+      rec={emp_id:emp.id,type:'work',date:r.date,time_in:'20:00',time_out:'05:00',hours:9,late_mins:0,ot_mins:0};
+    }else if(isAbs||zeroHrs){
+      rec={emp_id:emp.id,type:'absent',date:r.date,hours:0,late_mins:0,ot_mins:0};
+    }else if(r.time_in&&r.time_out){
+      const{lateMins,otMins,hours}=aOT(r.time_in,r.time_out);
+      rec={emp_id:emp.id,type:'work',date:r.date,time_in:r.time_in,time_out:r.time_out,hours,late_mins:lateMins,ot_mins:otMins};
+    }else{sk++;continue;}
     const existing=ATT.find(a=>a.emp_id===emp.id&&a.date===r.date);
     if(existing){await db.from('attendance').update(rec).eq('id',existing.id);const idx=ATT.findIndex(a=>a.id===existing.id);ATT[idx]=plain({...existing,...rec});}
     else{const{data}=await db.from('attendance').insert(rec).select().single();if(data)ATT.push(plain(data));}
