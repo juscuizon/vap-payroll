@@ -415,6 +415,16 @@ function calc(e,sd,ed){
   return{present,lateMins,attOT,manOT,totalOT,absent,payDays,pd,basic,otBonus,latePen,absPen,caAmt,govDed,gross,totalDed,net:Math.max(0,gross-totalDed)};
 }
 
+// ── Helper: check if an employee has ANY records in the pay period (work, absent, or leave)
+function hasPeriodRecords(e,sd,ed){
+  const hasAtt=ATT.some(r=>r.emp_id===e.id&&(!sd||r.date>=sd)&&(!ed||r.date<=ed));
+  if(hasAtt)return true;
+  const hasLv=LV.some(l=>l.emp_id===e.id&&(!sd||l.date>=sd)&&(!ed||l.date<=ed));
+  if(hasLv)return true;
+  const hasOT=OT.some(o=>o.emp_id===e.id&&(!sd||o.date>=sd)&&(!ed||o.date<=ed));
+  return hasOT;
+}
+
 // ── Format
 const fc=v=>'₱'+v.toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
 const fk=v=>'₱'+Math.round(v).toLocaleString();
@@ -684,9 +694,10 @@ function rPPL(){
 async function createPP(){
   const s=document.getElementById('pps').value,e=document.getElementById('ppe').value;
   if(!s||!e||s>e){toast('Set valid dates');return;}
-  const total=E.reduce((sum,emp)=>sum+calc(emp,s,e).net,0);
+  const activeE=E.filter(emp=>hasPeriodRecords(emp,s,e));
+  const total=activeE.reduce((sum,emp)=>sum+calc(emp,s,e).net,0);
   setLd('Creating...');
-  const{data,error}=await db.from('pay_periods').insert({start_date:s,end_date:e,employee_count:E.length,total_net:total}).select().single();
+  const{data,error}=await db.from('pay_periods').insert({start_date:s,end_date:e,employee_count:activeE.length,total_net:total}).select().single();
   if(error){hideLd();toast('Error: '+error.message);return;}
   const pp=plain(data);PP.unshift(pp);hideLd();curPP=pp.id;rPPL();openPP(pp.id);rCAT();
 }
@@ -707,7 +718,8 @@ function openPP(id){
 function rPPPay(p){
   const tb=document.getElementById('ppb'),tf=document.getElementById('ppf');tb.innerHTML='';tf.innerHTML='';
   let tn=0,tb2=0,tdm=0,tmisc=0,tl=0,ta=0,tc=0,tot=0;
-  E.forEach(e=>{
+  const activeE=E.filter(e=>hasPeriodRecords(e,p.start_date,p.end_date));
+  activeE.forEach(e=>{
     const r=calc(e,p.start_date,p.end_date);tn+=r.net;tb2+=r.basic;tdm+=r.pd.dmTotal;tmisc+=r.pd.misc;tl+=r.latePen;ta+=r.absPen;tc+=r.caAmt;tot+=r.otBonus;
     tb.innerHTML+=`<tr><td><strong>${en(e)}</strong></td><td>${r.present}</td><td>${fk(r.basic)}</td>
       <td>${r.pd.dmTotal>0?`<span class="bx xp">${fk(r.pd.dmTotal)}</span>`:'—'}</td>
@@ -721,7 +733,7 @@ function rPPPay(p){
   });
   tf.innerHTML=`<tr style="font-weight:700;border-top:2px solid #eee;background:#fafafa"><td>Total</td><td></td><td>${fk(tb2)}</td><td>${fk(tdm)}</td><td>${fk(tmisc)}</td><td>${fc(tot)}</td><td style="color:#dc2626">${fk(tl)}</td><td style="color:#dc2626">${fk(ta)}</td><td style="color:#dc2626">${fk(tc)}</td><td></td><td>${fc(tn)}</td></tr>`;
   document.getElementById('ppc').innerHTML=`
-    <div class="card"><div class="cl">Employees</div><div class="cv">${E.length}</div></div>
+    <div class="card"><div class="cl">Employees</div><div class="cv">${activeE.length}</div></div>
     <div class="card"><div class="cl">De minimis</div><div class="cv p">${fk(tdm)}</div></div>
     <div class="card"><div class="cl">OT bonus</div><div class="cv b">${fc(tot)}</div></div>
     <div class="card"><div class="cl">Late ded.</div><div class="cv a">${fk(tl)}</div></div>
@@ -730,7 +742,7 @@ function rPPPay(p){
 }
 function rPPSlips(p){
   const c=document.getElementById('ppslips');c.innerHTML='';
-  E.forEach(e=>{
+  E.filter(e=>hasPeriodRecords(e,p.start_date,p.end_date)).forEach(e=>{
     const r=calc(e,p.start_date,p.end_date);const above=e.monthly>BASE;
     const dmR=above?DMO.filter(k=>r.pd[k]>0).map(k=>`<div style="display:flex;justify-content:space-between;font-size:11px;padding:1px 0;color:#666"><span>${DML[k]}</span><span>${fc(r.pd[k])}</span></div>`).join(''):'';
     c.innerHTML+=`<div style="background:#fff;border-radius:10px;border:1px solid #eee;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
@@ -776,7 +788,7 @@ function exportCSV(){
   // Headers use plain quotes (not formula format)
   const hq=v=>'"'+String(v)+'"';
   const hdr=[hq('Employee ID'),hq('Name'),hq('Position'),hq('Monthly Rate'),hq('Days Present'),hq('Days Absent'),hq('Basic Earned'),hq('De Minimis'),hq('Misc Bonus'),hq('Att OT min'),hq('Manual OT min'),hq('Total OT min'),hq('OT Bonus'),hq('Late min'),hq('Late Penalty'),hq('Absent Penalty'),hq('Cash Advance'),hq('PAG-IBIG'),hq('SSS'),hq('PhilHealth'),hq('Gov Deductions'),hq('Gross'),hq('Total Deductions'),hq('Net Pay'),hq('Bank'),hq('Account Number')].join(',');
-  const rows=E.map(e=>{
+  const rows=E.filter(e=>hasPeriodRecords(e,p.start_date,p.end_date)).map(e=>{
     const r=calc(e,p.start_date,p.end_date);
     return[qv(e.id),qv(en(e)),qv(e.pos),nqv(e.monthly),nqv(r.present),nqv(r.absent),nqv(r.basic.toFixed(2)),nqv(r.pd.dmTotal.toFixed(2)),nqv(r.pd.misc.toFixed(2)),nqv(Math.round(r.attOT)),nqv(Math.round(r.manOT)),nqv(Math.round(r.totalOT)),nqv(r.otBonus.toFixed(2)),nqv(Math.round(r.lateMins)),nqv(r.latePen.toFixed(2)),nqv(r.absPen.toFixed(2)),nqv(r.caAmt.toFixed(2)),nqv(nv(e.pagibig).toFixed(2)),nqv(nv(e.sss).toFixed(2)),nqv(nv(e.philhealth).toFixed(2)),nqv(r.govDed.toFixed(2)),nqv(r.gross.toFixed(2)),nqv(r.totalDed.toFixed(2)),nqv(r.net.toFixed(2)),qv(e.bank||''),qv(e.acc||'')].join(',');
   });
@@ -792,10 +804,11 @@ function exportCSV(){
 function exportPDF(){
   const p=PP.find(x=>x.id===curPP);if(!p)return;
   const fp=v=>'&#x20B1;'+v.toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
-  const pages=E.map((e,i)=>{
+  const activeE=E.filter(e=>hasPeriodRecords(e,p.start_date,p.end_date));
+  const pages=activeE.map((e,i)=>{
     const r=calc(e,p.start_date,p.end_date);const above=e.monthly>BASE;
     const dmR=above?DMO.filter(k=>r.pd[k]>0).map(k=>`<tr><td style="font-size:11px;color:#555;padding:2px 0">${DML[k]}</td><td style="text-align:right;font-size:11px;padding:2px 0">${fp(r.pd[k])}</td></tr>`).join(''):'';
-    return`<div style="page-break-after:${i<E.length-1?'always':'avoid'};padding:20px 24px;font-family:Arial,sans-serif;font-size:12px;color:#111">
+    return`<div style="page-break-after:${i<activeE.length-1?'always':'avoid'};padding:20px 24px;font-family:Arial,sans-serif;font-size:12px;color:#111">
       <div style="text-align:center;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:12px"><div style="font-size:18px;font-weight:700">YOUR VA PARTNER</div><div style="font-size:9px;color:#666;letter-spacing:1.5px">PAYSLIP</div></div>
       <table style="width:100%;margin-bottom:12px;font-size:11px;border-collapse:collapse">
         <tr><td style="padding:2px 0"><b>Name:</b> ${en(e)}</td><td style="padding:2px 0"><b>Period:</b> ${p.start_date} to ${p.end_date}</td></tr>
