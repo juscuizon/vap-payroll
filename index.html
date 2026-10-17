@@ -168,12 +168,13 @@ tr:hover td{background:#fafafa}
     <div class="row"><label>Employee</label><select id="ce"></select></div>
     <div class="row"><label>Date</label><input type="date" id="cd"></div>
     <div class="row"><label>Amount (₱)</label><input type="number" id="ca2" placeholder="0"></div>
+    <div class="row"><label>Installments</label><input type="number" id="ca3" placeholder="1" min="1" max="12" value="1" style="width:80px"> <span style="font-size:11px;color:#888;align-self:center">pay periods (1 = full deduction)</span></div>
     <div class="row"><label>Note</label><input type="text" id="cn"></div>
     <div class="fe"><button class="bp" onclick="addCA()">Add cash advance</button></div>
   </div>
   <div class="panel"><h3>Records</h3>
-    <p style="font-size:11px;color:#888;margin-bottom:10px">Status becomes <strong style="color:#15803d">✓ Deducted</strong> once a pay period covering that date is created.</p>
-    <table><thead><tr><th>Employee</th><th>Date</th><th>Amount</th><th>Note</th><th>Status</th><th>Pay period</th><th></th></tr></thead>
+    <p style="font-size:11px;color:#888;margin-bottom:10px">Status becomes <strong style="color:#15803d">✓ Deducted</strong> once a pay period covering that date is created. Split advances show per-installment progress.</p>
+    <table><thead><tr><th>Employee</th><th>Date</th><th>Total</th><th>Per period</th><th>Installments</th><th>Note</th><th>Status</th><th></th></tr></thead>
     <tbody id="cab"></tbody></table>
     <div id="cae" style="text-align:center;padding:20px;color:#999;font-size:12px;display:none">No records yet</div></div>
 </div>
@@ -195,8 +196,15 @@ tr:hover td{background:#fafafa}
       <div id="ppd" style="display:none">
         <div class="panel" style="margin-bottom:10px">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-            <div><div style="font-size:15px;font-weight:700" id="pptitle"></div><div style="font-size:11px;color:#888;margin-top:2px" id="ppsub"></div></div>
+            <div id="pptitle-view"><div style="font-size:15px;font-weight:700" id="pptitle"></div><div style="font-size:11px;color:#888;margin-top:2px" id="ppsub"></div></div>
+            <div id="pptitle-edit" style="display:none;gap:8px;align-items:center;flex-wrap:wrap" class="fr">
+              <div class="fg" style="margin:0"><label style="font-size:10px">Start</label><input type="date" id="ppe-s" style="font-size:12px;padding:4px 6px"></div>
+              <div class="fg" style="margin:0"><label style="font-size:10px">End</label><input type="date" id="ppe-e" style="font-size:12px;padding:4px 6px"></div>
+              <button class="bp" style="padding:5px 10px;font-size:12px" onclick="savePPDates()">Save</button>
+              <button class="bs" style="padding:5px 10px;font-size:12px" onclick="cancelEditPP()">Cancel</button>
+            </div>
             <div class="fr">
+              <button class="bs" onclick="startEditPP()">✎ Edit dates</button>
               <button class="bs" onclick="exportCSV()">↓ CSV</button>
               <button class="bs bg2" onclick="exportPDF()">↓ PDF</button>
               <button class="bs bd" onclick="deletePP()">Delete</button>
@@ -408,7 +416,17 @@ function calc(e,sd,ed){
   const latePen=lateMins*(hrR(e.monthly)/60);
   const absPen=absent*db;
   const otBonus=totalOT*otR(e.monthly);
-  const caAmt=CA.filter(c=>c.emp_id===e.id&&(!sd||c.date>=sd)&&(!ed||c.date<=ed)).reduce((s,c)=>s+c.amount,0);
+  // Cash advance: for single-payment CAs, deduct if date falls in period.
+  // For installment CAs, deduct perPeriod amount if this period is within the installment window.
+  const caAmt=CA.filter(c=>c.emp_id===e.id).reduce((s,c)=>{
+    const inst=c.installments||1;
+    const perPeriod=c.amount/inst;
+    // Get all pay periods that would deduct this CA, in chronological order
+    const allDedPPs=[...PP].filter(p=>p.end_date>=c.date).sort((a,b)=>a.start_date.localeCompare(b.start_date));
+    const periodIdx=allDedPPs.findIndex(p=>p.start_date===sd&&p.end_date===ed);
+    if(periodIdx>=0&&periodIdx<inst)return s+perPeriod;
+    return s;
+  },0);
   const govDed=(+e.pagibig||0)+(+e.sss||0)+(+e.philhealth||0);
   const gross=basic+pd.dmTotal+pd.misc+otBonus;
   const totalDed=latePen+absPen+caAmt+govDed;
@@ -650,28 +668,39 @@ function rCA(){
   if(!document.getElementById('cd').value)document.getElementById('cd').value=new Date().toISOString().split('T')[0];
   rCAT();
 }
+function caDeductedPeriods(c){
+  // Return sorted pay periods that fall on or after the CA date
+  return [...PP].filter(p=>p.end_date>=c.date).sort((a,b)=>a.start_date.localeCompare(b.start_date));
+}
 function rCAT(){
   const tb=document.getElementById('cab');tb.innerHTML='';
   const sorted=[...CA].sort((a,b)=>b.date.localeCompare(a.date));
   document.getElementById('cae').style.display=sorted.length?'none':'block';
   sorted.forEach(c=>{
     const e=E.find(x=>x.id===c.emp_id);
-    const covPP=findPP(c.date);const ded=!!covPP;
-    const badge=ded?`<span class="bx xd">✓ Deducted</span>`:`<span class="bx xa">Pending</span>`;
-    const ppLbl=ded?`<span style="font-size:11px;color:#555">${covPP.start_date} – ${covPP.end_date}</span>`:`<span style="color:#ccc;font-size:11px">—</span>`;
-    tb.innerHTML+=`<tr><td><strong>${e?en(e):'—'}</strong></td><td>${c.date}</td><td><strong>${fc(c.amount)}</strong></td><td style="color:#888">${c.note||'—'}</td><td>${badge}</td><td>${ppLbl}</td><td><button class="bs bd" onclick="delCA(${c.id},'${c.date}')">×</button></td></tr>`;
+    const inst=c.installments||1;
+    const perPeriod=c.amount/inst;
+    const dedPPs=caDeductedPeriods(c);
+    const dedCount=Math.min(dedPPs.length,inst);
+    const fullyPaid=dedCount>=inst;
+    const badge=fullyPaid?`<span class="bx xd">✓ Fully paid</span>`:dedCount>0?`<span class="bx xa">${dedCount}/${inst} done</span>`:`<span class="bx xa">Pending</span>`;
+    const perCell=inst>1?fc(perPeriod):'—';
+    const instCell=inst>1?`${dedCount} of ${inst}`:`${dedCount>0?'1 of 1':'—'}`;
+    tb.innerHTML+=`<tr><td><strong>${e?en(e):'—'}</strong></td><td>${c.date}</td><td><strong>${fc(c.amount)}</strong></td><td>${perCell}</td><td>${instCell}</td><td style="color:#888">${c.note||'—'}</td><td>${badge}</td><td><button class="bs bd" onclick="delCA(${c.id},'${c.date}')">×</button></td></tr>`;
   });
 }
 async function addCA(){
   const empId=document.getElementById('ce').value,date=document.getElementById('cd').value;
   const amt=parseFloat(document.getElementById('ca2').value);const note=document.getElementById('cn').value;
+  const inst=Math.max(1,parseInt(document.getElementById('ca3').value)||1);
   if(!date||!amt||amt<=0){toast('Enter date and amount');return;}
   setLd('Saving...');
-  const{data,error}=await db.from('cash_advances').insert({emp_id:empId,date,amount:amt,note}).select().single();
+  const{data,error}=await db.from('cash_advances').insert({emp_id:empId,date,amount:amt,note,installments:inst}).select().single();
   if(error){hideLd();toast('Error: '+error.message);return;}
   CA.push(plain(data));hideLd();
   document.getElementById('ca2').value='';document.getElementById('cn').value='';
-  rCAT();rDash();toast(`${fc(amt)} logged`);
+  document.getElementById('ca3').value='1';
+  rCAT();rDash();toast(`${fc(amt)} logged (${inst} installment${inst>1?'s':''})`);
 }
 async function delCA(id,date){
   if(findPP(date)&&!confirm('Already deducted. Delete anyway?'))return;
@@ -713,7 +742,29 @@ function openPP(id){
   document.getElementById('ppd').style.display='block';document.getElementById('ppempty').style.display='none';
   document.getElementById('pptitle').textContent=`${p.start_date} to ${p.end_date}`;
   document.getElementById('ppsub').textContent=`${new Date(p.created_at).toLocaleDateString()} · ${p.employee_count} employees`;
+  cancelEditPP();
   rPPL();rPPPay(p);rPPSlips(p);
+}
+function startEditPP(){
+  const p=PP.find(x=>x.id===curPP);if(!p)return;
+  document.getElementById('ppe-s').value=p.start_date;
+  document.getElementById('ppe-e').value=p.end_date;
+  document.getElementById('pptitle-view').style.display='none';
+  document.getElementById('pptitle-edit').style.display='flex';
+}
+function cancelEditPP(){
+  document.getElementById('pptitle-view').style.display='block';
+  document.getElementById('pptitle-edit').style.display='none';
+}
+async function savePPDates(){
+  const s=document.getElementById('ppe-s').value,e=document.getElementById('ppe-e').value;
+  if(!s||!e||s>e){toast('Invalid dates');return;}
+  setLd('Saving...');
+  const{error}=await db.from('pay_periods').update({start_date:s,end_date:e}).eq('id',curPP);
+  if(error){hideLd();toast('Error: '+error.message);return;}
+  const idx=PP.findIndex(p=>p.id===curPP);
+  PP[idx]={...PP[idx],start_date:s,end_date:e};
+  hideLd();cancelEditPP();openPP(curPP);toast('Dates updated');
 }
 function rPPPay(p){
   const tb=document.getElementById('ppb'),tf=document.getElementById('ppf');tb.innerHTML='';tf.innerHTML='';
