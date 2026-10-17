@@ -686,7 +686,21 @@ function rCAT(){
     const badge=fullyPaid?`<span class="bx xd">✓ Fully paid</span>`:dedCount>0?`<span class="bx xa">${dedCount}/${inst} done</span>`:`<span class="bx xa">Pending</span>`;
     const perCell=inst>1?fc(perPeriod):'—';
     const instCell=inst>1?`${dedCount} of ${inst}`:`${dedCount>0?'1 of 1':'—'}`;
-    tb.innerHTML+=`<tr><td><strong>${e?en(e):'—'}</strong></td><td>${c.date}</td><td><strong>${fc(c.amount)}</strong></td><td>${perCell}</td><td>${instCell}</td><td style="color:#888">${c.note||'—'}</td><td>${badge}</td><td><button class="bs bd" onclick="delCA(${c.id},'${c.date}')">×</button></td></tr>`;
+    tb.innerHTML+=`<tr id="car-${c.id}"><td><strong>${e?en(e):'—'}</strong></td><td>${c.date}</td>
+      <td id="ca-amt-${c.id}"><strong>${fc(c.amount)}</strong></td>
+      <td>${perCell}</td><td>${instCell}</td><td style="color:#888">${c.note||'—'}</td><td>${badge}</td>
+      <td class="fr" style="gap:4px">
+        <button class="bs" onclick="editCA(${c.id})">✎</button>
+        <button class="bs bd" onclick="delCA(${c.id},'${c.date}')">×</button>
+      </td></tr>
+      <tr id="car-edit-${c.id}" style="display:none;background:#f9fafb"><td colspan="8" style="padding:8px 10px">
+        <div class="fr" style="gap:8px;flex-wrap:wrap">
+          <div class="fg" style="margin:0"><label style="font-size:10px">Amount (₱)</label><input type="number" id="ca-edit-amt-${c.id}" value="${c.amount}" style="font-size:12px;padding:4px 6px;width:110px"></div>
+          <div class="fg" style="margin:0"><label style="font-size:10px">Installments</label><input type="number" id="ca-edit-inst-${c.id}" value="${c.installments||1}" min="1" max="12" style="font-size:12px;padding:4px 6px;width:70px"></div>
+          <button class="bp" style="padding:5px 10px;font-size:12px;align-self:flex-end" onclick="saveCA(${c.id})">Save</button>
+          <button class="bs" style="padding:5px 10px;font-size:12px;align-self:flex-end" onclick="cancelEditCA(${c.id})">Cancel</button>
+        </div>
+      </td></tr>`;
   });
 }
 async function addCA(){
@@ -707,6 +721,23 @@ async function delCA(id,date){
   setLd('Deleting...');
   await db.from('cash_advances').delete().eq('id',id);
   CA=CA.filter(c=>c.id!==id);hideLd();rCAT();rDash();
+}
+function editCA(id){
+  document.getElementById('car-edit-'+id).style.display='';
+}
+function cancelEditCA(id){
+  document.getElementById('car-edit-'+id).style.display='none';
+}
+async function saveCA(id){
+  const amt=parseFloat(document.getElementById('ca-edit-amt-'+id).value);
+  const inst=Math.max(1,parseInt(document.getElementById('ca-edit-inst-'+id).value)||1);
+  if(!amt||amt<=0){toast('Enter a valid amount');return;}
+  setLd('Saving...');
+  const{error}=await db.from('cash_advances').update({amount:amt,installments:inst}).eq('id',id);
+  if(error){hideLd();toast('Error: '+error.message);return;}
+  const idx=CA.findIndex(c=>c.id===id);
+  CA[idx]={...CA[idx],amount:amt,installments:inst};
+  hideLd();rCAT();rDash();toast('Cash advance updated');
 }
 
 // ── Pay periods
