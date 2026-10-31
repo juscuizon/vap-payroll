@@ -168,12 +168,13 @@ tr:hover td{background:#fafafa}
     <div class="row"><label>Employee</label><select id="ce"></select></div>
     <div class="row"><label>Date</label><input type="date" id="cd"></div>
     <div class="row"><label>Amount (₱)</label><input type="number" id="ca2" placeholder="0"></div>
+    <div class="row"><label>Installments</label><input type="number" id="cainst" placeholder="1" min="1" max="12" value="1" style="width:80px"><span style="font-size:11px;color:#888;margin-left:8px">pay periods to spread deduction over</span></div>
     <div class="row"><label>Note</label><input type="text" id="cn"></div>
     <div class="fe"><button class="bp" onclick="addCA()">Add cash advance</button></div>
   </div>
   <div class="panel"><h3>Records</h3>
-    <p style="font-size:11px;color:#888;margin-bottom:10px">Status becomes <strong style="color:#15803d">✓ Deducted</strong> once a pay period covering that date is created.</p>
-    <table><thead><tr><th>Employee</th><th>Date</th><th>Amount</th><th>Note</th><th>Status</th><th>Pay period</th><th></th></tr></thead>
+    <p style="font-size:11px;color:#888;margin-bottom:10px">Status becomes <strong style="color:#15803d">✓ Deducted</strong> once a pay period covering that date is created. Installments split the deduction across N pay periods.</p>
+    <table><thead><tr><th>Employee</th><th>Date</th><th>Amount</th><th>Installments</th><th>Per Period</th><th>Note</th><th>Status</th><th></th></tr></thead>
     <tbody id="cab"></tbody></table>
     <div id="cae" style="text-align:center;padding:20px;color:#999;font-size:12px;display:none">No records yet</div></div>
 </div>
@@ -467,7 +468,7 @@ async function loadAll(){
   try{
     const [r1,r2,r3,r4,r5,r6]=await Promise.all([
       db.from('employees').select('*').order('id'),
-      db.from('attendance').select('*').order('date').limit(10000),
+      db.from('attendance').select('*').order('date').limit(5000),
       db.from('overtime_records').select('*').order('date'),
       db.from('leaves').select('*').order('date'),
       db.from('cash_advances').select('*').order('date'),
@@ -665,22 +666,64 @@ function rCAT(){
   document.getElementById('cae').style.display=sorted.length?'none':'block';
   sorted.forEach(c=>{
     const e=E.find(x=>x.id===c.emp_id);
-    const covPP=findPP(c.date);const ded=!!covPP;
-    const badge=ded?`<span class="bx xd">✓ Deducted</span>`:`<span class="bx xa">Pending</span>`;
-    const ppLbl=ded?`<span style="font-size:11px;color:#555">${covPP.start_date} – ${covPP.end_date}</span>`:`<span style="color:#ccc;font-size:11px">—</span>`;
-    tb.innerHTML+=`<tr><td><strong>${e?en(e):'—'}</strong></td><td>${c.date}</td><td><strong>${fc(c.amount)}</strong></td><td style="color:#888">${c.note||'—'}</td><td>${badge}</td><td>${ppLbl}</td><td><button class="bs bd" onclick="delCA(${c.id},'${c.date}')">×</button></td></tr>`;
+    const inst=c.installments||1;
+    const perPeriod=c.amount/inst;
+    const allDedPPs=[...PP].filter(p=>p.end_date>=c.date).sort((a,b)=>a.start_date.localeCompare(b.start_date));
+    const deductedCount=allDedPPs.length;
+    const remaining=Math.max(0,inst-deductedCount);
+    let badge;
+    if(deductedCount===0)badge=`<span class="bx xa">Pending</span>`;
+    else if(remaining===0)badge=`<span class="bx xd">✓ Fully deducted</span>`;
+    else badge=`<span class="bx xb">${deductedCount}/${inst} deducted</span>`;
+    tb.innerHTML+=`
+    <tr>
+      <td><strong>${e?en(e):'—'}</strong></td>
+      <td>${c.date}</td>
+      <td><strong>${fc(c.amount)}</strong></td>
+      <td style="text-align:center">${inst}×</td>
+      <td>${fc(perPeriod)}</td>
+      <td style="color:#888">${c.note||'—'}</td>
+      <td>${badge}</td>
+      <td style="white-space:nowrap">
+        <button class="bs" onclick="editCA(${c.id})" style="margin-right:2px">✎</button>
+        <button class="bs bd" onclick="delCA(${c.id},'${c.date}')">×</button>
+      </td>
+    </tr>
+    <tr id="car-edit-${c.id}" style="display:none;background:#fffbeb">
+      <td colspan="8" style="padding:8px">
+        <span style="font-size:12px;font-weight:600;margin-right:8px">Edit:</span>
+        <label style="font-size:12px;margin-right:4px">Amount ₱</label><input id="ca-edit-amt-${c.id}" type="number" value="${c.amount}" style="width:90px;margin-right:12px">
+        <label style="font-size:12px;margin-right:4px">Installments</label><input id="ca-edit-inst-${c.id}" type="number" value="${inst}" min="1" max="12" style="width:60px;margin-right:12px">
+        <button class="bp" style="padding:3px 10px;font-size:12px;margin-right:4px" onclick="saveCA(${c.id})">Save</button>
+        <button class="bs" style="font-size:12px" onclick="cancelEditCA(${c.id})">Cancel</button>
+      </td>
+    </tr>`;
   });
 }
 async function addCA(){
   const empId=document.getElementById('ce').value,date=document.getElementById('cd').value;
-  const amt=parseFloat(document.getElementById('ca2').value);const note=document.getElementById('cn').value;
+  const amt=parseFloat(document.getElementById('ca2').value);
+  const inst=Math.max(1,parseInt(document.getElementById('cainst').value)||1);
+  const note=document.getElementById('cn').value;
   if(!date||!amt||amt<=0){toast('Enter date and amount');return;}
   setLd('Saving...');
-  const{data,error}=await db.from('cash_advances').insert({emp_id:empId,date,amount:amt,note}).select().single();
+  const{data,error}=await db.from('cash_advances').insert({emp_id:empId,date,amount:amt,installments:inst,note}).select().single();
   if(error){hideLd();toast('Error: '+error.message);return;}
   CA.push(plain(data));hideLd();
-  document.getElementById('ca2').value='';document.getElementById('cn').value='';
-  rCAT();rDash();toast(`${fc(amt)} logged`);
+  document.getElementById('ca2').value='';document.getElementById('cainst').value='1';document.getElementById('cn').value='';
+  rCAT();rDash();toast(`${fc(amt)} logged (${inst} installment${inst>1?'s':''})`);
+}
+function editCA(id){document.getElementById('car-edit-'+id).style.display='';}
+function cancelEditCA(id){document.getElementById('car-edit-'+id).style.display='none';}
+async function saveCA(id){
+  const amt=parseFloat(document.getElementById('ca-edit-amt-'+id).value);
+  const inst=Math.max(1,parseInt(document.getElementById('ca-edit-inst-'+id).value)||1);
+  if(!amt||amt<=0){toast('Enter a valid amount');return;}
+  setLd('Saving...');
+  const{error}=await db.from('cash_advances').update({amount:amt,installments:inst}).eq('id',id);
+  if(error){hideLd();toast('Error: '+error.message);return;}
+  const idx=CA.findIndex(c=>c.id===id);CA[idx]={...CA[idx],amount:amt,installments:inst};
+  hideLd();rCAT();rDash();toast('Cash advance updated');
 }
 async function delCA(id,date){
   if(findPP(date)&&!confirm('Already deducted. Delete anyway?'))return;
